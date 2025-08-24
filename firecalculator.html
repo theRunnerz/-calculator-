@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mini FIRE Calculator (TronLink Protected)</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+  input { margin-bottom: 10px; width: 100%; padding: 8px; }
+  button { padding: 10px 20px; margin-bottom: 20px; cursor: pointer; }
+  #calculator { display: none; margin-top: 20px; }
+  #results { margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h1>🔥 Mini FIRE Calculator</h1>
+
+<button id="connectBtn">Connect TronLink</button>
+<p id="status">Wallet not connected.</p>
+
+<div id="calculator">
+  <label>Current savings (CAD): <input type="number" id="current_savings" value="115000"></label>
+  <label>Monthly contribution (CAD): <input type="number" id="monthly_contribution" value="2000"></label>
+  <label>Expected annual return (%): <input type="number" id="annual_return" value="8"></label>
+  <label>Monthly expenses (CAD): <input type="number" id="monthly_expenses" value="2000"></label>
+  <label>Safe withdrawal rate (%): <input type="number" id="withdrawal_rate" value="5"></label>
+  <label>Projection years: <input type="number" id="years" value="20"></label>
+  <button id="calculateBtn">Calculate</button>
+  <div id="results"></div>
+</div>
+
+<script>
+// --- Whitelist of allowed Tron wallets ---
+const WHITELIST = ["TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma"];
+
+let userAddress = null;
+
+// --- Connect TronLink ---
+document.getElementById("connectBtn").addEventListener("click", async () => {
+    if (window.tronWeb && window.tronWeb.ready) {
+        userAddress = tronWeb.defaultAddress.base58;
+        if (WHITELIST.includes(userAddress)) {
+            document.getElementById("status").innerText = "✅ Connected: " + userAddress;
+            document.getElementById("calculator").style.display = "block";
+        } else {
+            document.getElementById("status").innerText = "❌ Wallet not authorized.";
+        }
+    } else {
+        alert("TronLink not found. Please install TronLink.");
+    }
+});
+
+// --- FIRE Calculation ---
+document.getElementById("calculateBtn").addEventListener("click", () => {
+    if (!userAddress) return;
+
+    const current_savings = parseFloat(document.getElementById("current_savings").value);
+    const monthly_contribution = parseFloat(document.getElementById("monthly_contribution").value);
+    const annual_return = parseFloat(document.getElementById("annual_return").value) / 100;
+    const monthly_expenses = parseFloat(document.getElementById("monthly_expenses").value);
+    const withdrawal_rate = parseFloat(document.getElementById("withdrawal_rate").value) / 100;
+    const years = parseInt(document.getElementById("years").value);
+
+    let balance = current_savings;
+    let freedom_year = null;
+    let resultsHTML = "<h3>Yearly Projection:</h3><ul>";
+
+    for (let year = 1; year <= years; year++) {
+        balance += monthly_contribution * 12;
+        balance *= (1 + annual_return);
+        const safe_monthly = (balance * withdrawal_rate) / 12;
+
+        resultsHTML += `<li>Year ${year}: Balance = $${balance.toFixed(2)}, Safe Monthly Withdrawal = $${safe_monthly.toFixed(2)}</li>`;
+
+        if (!freedom_year && safe_monthly >= monthly_expenses) {
+            freedom_year = year;
+        }
+    }
+    resultsHTML += "</ul>";
+
+    if (freedom_year) {
+        resultsHTML += `<p>🎉 You can retire safely in year ${freedom_year}!</p>`;
+    } else {
+        resultsHTML += `<p>❌ You won't reach full financial freedom within this timeframe.</p>`;
+    }
+
+    document.getElementById("results").innerHTML = resultsHTML;
+});
+</script>
+
+</body>
+</html>
