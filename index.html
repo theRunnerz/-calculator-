@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🔥 DeFiRE Calculator 🔥 </title>
+  <title>🔥 DeFiRE Calculator 🔥</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -59,7 +59,7 @@
   </style>
 </head>
 <body>
-  <h1>🔥 DeFire Calculator 🔥</h1>
+  <h1>🔥 DeFiRE Calculator 🔥</h1>
   <h2>built on TRON</h2>
   <h3>Created by FootballAlien$</h3>
   <p class="wallet-status" id="walletStatus">Connect Wallet to Begin</p>
@@ -77,22 +77,56 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
   <script>
-    const WHITELISTED_WALLET = "TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma";
+    const OWNER_WALLET = "TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma";
+    const FBA_CONTRACT = "TNW5ABkp3v4jfeDo1vRVjxa3gtnoxP3DBN";
+    const MIN_TOKENS = 1000;
 
     async function connectWallet() {
       if (!window.tronWeb || !window.tronWeb.ready) {
-        document.getElementById("walletStatus").innerText = "❌ TronLink not detected. Install TronLink extension or app.";
+        document.getElementById("walletStatus").innerText =
+          "❌ TronLink not detected. Install TronLink extension or app.";
         return;
       }
 
       const wallet = window.tronWeb.defaultAddress.base58;
-      if (wallet === WHITELISTED_WALLET) {
-        document.getElementById("walletStatus").innerText = "✅ Connected: " + wallet;
-        document.getElementById("calc").style.display = "block";
-      } else {
-        document.getElementById("walletStatus").innerText = "⛔ Access Denied. Wallet not whitelisted.";
-        document.getElementById("calc").style.display = "none";
+      document.getElementById("walletStatus").innerText = "🔄 Checking access for: " + wallet;
+
+      // Always whitelist your own wallet
+      if (wallet === OWNER_WALLET) {
+        grantAccess(wallet);
+        return;
       }
+
+      try {
+        const contract = await window.tronWeb.contract().at(FBA_CONTRACT);
+        const balance = await contract.balanceOf(wallet).call();
+
+        // balance comes in SUN (like 6 decimals usually) → convert to readable
+        const decimals = 6; // adjust if FBA has different decimals
+        const tokenBalance = parseInt(balance.toString()) / (10 ** decimals);
+
+        if (tokenBalance >= MIN_TOKENS) {
+          grantAccess(wallet, tokenBalance);
+        } else {
+          denyAccess(wallet, tokenBalance);
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById("walletStatus").innerText =
+          "⚠️ Error fetching token balance. Please retry.";
+      }
+    }
+
+    function grantAccess(wallet, tokens = null) {
+      document.getElementById("walletStatus").innerText =
+        `✅ Access Granted: ${wallet}` + (tokens ? ` (FBA: ${tokens})` : "");
+      document.getElementById("calc").style.display = "block";
+    }
+
+    function denyAccess(wallet, tokens) {
+      document.getElementById("walletStatus").innerText =
+        `⛔ Access Denied: ${wallet} (FBA: ${tokens})`;
+      document.getElementById("calc").style.display = "none";
     }
 
     function calculateFIRE() {
@@ -118,7 +152,8 @@
       if (years >= 100) {
         document.getElementById("result").innerText = "🚫 FIRE not achievable in 100 years.";
       } else {
-        document.getElementById("result").innerText = `🎉 You can retire in ${years} years with $${balance.toFixed(2)}.`;
+        document.getElementById("result").innerText =
+          `🎉 You can retire in ${years} years with $${balance.toFixed(2)}.`;
       }
     }
   </script>
