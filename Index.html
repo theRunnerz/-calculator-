@@ -4,56 +4,71 @@
   <meta charset="UTF-8">
   <title>TRON Calculator</title>
   <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
-
-  <!-- Add styles here -->
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #0d1117;
-      color: #fff;
-      margin: 0;
-      padding: 20px;
-    }
-
-    h1 {
-      color: #00ffcc;
-    }
-
-    button {
-      background: #00ffcc;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background: #00ccaa;
-    }
-
-    #status {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-  </style>
 </head>
 <body>
-  <h1>TRON Wallet Connect Test</h1>
-  <button id="connect">Connect TronLink</button>
-  <p id="status">Not connected</p>
+  <div class="container">
+    <h1>⚡ TRON Wallet Connect</h1>
+    <button id="connect">Connect TronLink</button>
+    <p id="status">Not connected</p>
+  </div>
 
   <script>
     document.getElementById("connect").addEventListener("click", async () => {
       if (typeof window.tronWeb !== "undefined" && window.tronWeb.ready) {
         const address = window.tronWeb.defaultAddress.base58;
-        document.getElementById("status").innerText = "Connected: " + address;
+        document.getElementById("status").innerText = "✅ Connected: " + address;
       } else {
-        document.getElementById("status").innerText = "TronLink not found. Please open in TronLink browser.";
+        document.getElementById("status").innerText = "❌ TronLink not found. Please open in TronLink browser.";
       }
     });
   </script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #141e30, #243b55);
+      color: #fff;
+      text-align: center;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      width: 90%;
+      max-width: 400px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      background: #00c9ff;
+      color: #000;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #92fe9d;
+    }
+
+    p {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+  </style>
 </body>
 </html>
