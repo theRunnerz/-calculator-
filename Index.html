@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TRON Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
+</head>
+<body>
+  <h1>TRON Wallet Connect Test</h1>
+  <button id="connect">Connect TronLink</button>
+  <p id="status">Not connected</p>
+
+  <script>
+    document.getElementById("connect").addEventListener("click", async () => {
+      if (typeof window.tronWeb !== "undefined" && window.tronWeb.ready) {
+        const address = window.tronWeb.defaultAddress.base58;
+        document.getElementById("status").innerText = "Connected: " + address;
+      } else {
+        document.getElementById("status").innerText = "TronLink not found. Please open in TronLink browser.";
+      }
+    });
+  </script>
+</body>
+</html>
