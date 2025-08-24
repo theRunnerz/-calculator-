@@ -2,73 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TRON Calculator</title>
+  <title>TRON Wallet Connect QR</title>
   <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
-</head>
-<body>
-  <div class="container">
-    <h1>⚡ TRON Wallet Connect</h1>
-    <button id="connect">Connect TronLink</button>
-    <p id="status">Not connected</p>
-  </div>
-
-  <script>
-    document.getElementById("connect").addEventListener("click", async () => {
-      if (typeof window.tronWeb !== "undefined" && window.tronWeb.ready) {
-        const address = window.tronWeb.defaultAddress.base58;
-        document.getElementById("status").innerText = "✅ Connected: " + address;
-      } else {
-        document.getElementById("status").innerText = "❌ TronLink not found. Please open in TronLink browser.";
-      }
-    });
-  </script>
-
+  <script src="https://cdn.jsdelivr.net/npm/tronlink-extension-dapp/dist/TronLink.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: linear-gradient(135deg, #141e30, #243b55);
-      color: #fff;
+      color: white;
       text-align: center;
-      height: 100vh;
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      padding: 50px;
     }
 
     .container {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,0.1);
       padding: 30px;
       border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-      width: 90%;
-      max-width: 400px;
+      display: inline-block;
     }
 
-    h1 {
-      margin-bottom: 20px;
-      font-size: 24px;
-    }
-
+    h1 { margin-bottom: 20px; }
     button {
       padding: 12px 20px;
-      border: none;
-      border-radius: 10px;
-      background: #00c9ff;
-      color: #000;
       font-size: 16px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      border-radius: 8px;
+      border: none;
+      background: #00c9ff;
+      color: black;
+      margin-top: 15px;
     }
-
-    button:hover {
-      background: #92fe9d;
-    }
-
-    p {
-      margin-top: 20px;
-      font-size: 16px;
-    }
+    button:hover { background: #92fe9d; }
+    #status { margin-top: 20px; font-size: 18px; }
+    #qrcode { margin-top: 20px; }
   </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Connect Your TRON Wallet</h1>
+    <button id="connect">Generate QR Code</button>
+    <p id="status">Not connected</p>
+    <div id="qrcode"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script>
+    const connectBtn = document.getElementById("connect");
+    const statusEl = document.getElementById("status");
+    const qrcodeEl = document.getElementById("qrcode");
+
+    connectBtn.addEventListener("click", async () => {
+      if (typeof window.tronWeb !== "undefined" && window.tronWeb.ready) {
+        // If user is already on TronLink browser
+        const address = window.tronWeb.defaultAddress.base58;
+        statusEl.innerText = "✅ Connected: " + address;
+      } else {
+        // Generate a QR code for mobile TronLink scan
+        const url = "https://www.tronlink.org/#/scan"; // Users scan this URL in TronLink
+        QRCode.toCanvas(qrcodeEl, url, function (error) {
+          if (error) console.error(error);
+          else statusEl.innerText = "📱 Scan QR code with TronLink to connect";
+        });
+      }
+    });
+  </script>
 </body>
 </html>
