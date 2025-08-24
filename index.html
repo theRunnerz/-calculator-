@@ -1,94 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FIRE Calculator</title>
-  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; }
-    #calculator, #denied { display: none; }
-    input { margin: 0.5rem; padding: 0.5rem; width: 200px; }
-    button { padding: 0.5rem 1rem; margin: 1rem; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #0d1117;
+      color: #f0f6fc;
+      text-align: center;
+      padding: 20px;
+    }
+    .card {
+      background: #161b22;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    }
+    input {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      border-radius: 6px;
+      border: none;
+    }
+    button {
+      background: #238636;
+      border: none;
+      color: white;
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+    }
+    button:hover {
+      background: #2ea043;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #locked {
+      color: #ff6b6b;
+      font-weight: bold;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
-  <h1>FIRE Calculator</h1>
-  <button id="connectBtn">Connect Wallet</button>
+  <h1>🔥 FIRE Calculator 🔥</h1>
+  <div id="walletStatus">Connect your wallet to use the calculator.</div>
+  <button onclick="connectWallet()">Connect Wallet</button>
 
-  <div id="denied">
-    <h2>🚫 Access Denied</h2>
-    <p>Your wallet is not whitelisted.</p>
+  <div class="card" id="calculator" style="display:none;">
+    <h2>Financial Independence Calculator</h2>
+    <input type="number" id="annualIncome" placeholder="Annual Income ($)">
+    <input type="number" id="annualExpenses" placeholder="Annual Expenses ($)">
+    <input type="number" id="currentSavings" placeholder="Current Savings ($)">
+    <input type="number" id="annualReturn" placeholder="Expected Annual Return (%)" value="7">
+    <button onclick="calculateFIRE()">Calculate</button>
+    <div id="result"></div>
   </div>
 
-  <div id="calculator">
-    <h2>FIRE Calculator</h2>
-    <p>Enter your financial details:</p>
-    <input type="number" id="savings" placeholder="Current Savings ($)" /><br />
-    <input type="number" id="income" placeholder="Annual Income ($)" /><br />
-    <input type="number" id="expenses" placeholder="Annual Expenses ($)" /><br />
-    <input type="number" id="rate" placeholder="Expected Growth Rate (%)" /><br />
-    <button onclick="calculate()">Calculate</button>
-    <p id="result"></p>
-  </div>
+  <div id="locked" style="display:none;">⛔ Access denied. Your wallet is not whitelisted.</div>
 
   <script>
     const whitelist = ["TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma"];
-    const connectBtn = document.getElementById("connectBtn");
-    const denied = document.getElementById("denied");
-    const calculator = document.getElementById("calculator");
+    let userWallet = null;
 
     async function connectWallet() {
-      if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-        alert("Please install TronLink and log in.");
-        return;
-      }
+      if (window.tronWeb && window.tronWeb.ready) {
+        userWallet = window.tronWeb.defaultAddress.base58;
+        document.getElementById("walletStatus").innerText = "Connected: " + userWallet;
 
-      const wallet = window.tronWeb.defaultAddress.base58;
-      console.log("Connected wallet:", wallet);
-
-      if (whitelist.includes(wallet)) {
-        connectBtn.style.display = "none";
-        calculator.style.display = "block";
+        if (whitelist.includes(userWallet)) {
+          document.getElementById("calculator").style.display = "block";
+          document.getElementById("locked").style.display = "none";
+        } else {
+          document.getElementById("calculator").style.display = "none";
+          document.getElementById("locked").style.display = "block";
+        }
       } else {
-        connectBtn.style.display = "none";
-        denied.style.display = "block";
+        alert("Please install TronLink wallet extension and log in.");
       }
     }
 
-    function calculate() {
-      const savings = parseFloat(document.getElementById("savings").value);
-      const income = parseFloat(document.getElementById("income").value);
-      const expenses = parseFloat(document.getElementById("expenses").value);
-      const rate = parseFloat(document.getElementById("rate").value) / 100;
+    function calculateFIRE() {
+      const income = parseFloat(document.getElementById("annualIncome").value);
+      const expenses = parseFloat(document.getElementById("annualExpenses").value);
+      const savings = parseFloat(document.getElementById("currentSavings").value);
+      const returnRate = parseFloat(document.getElementById("annualReturn").value) / 100;
 
-      if (isNaN(savings) || isNaN(income) || isNaN(expenses) || isNaN(rate)) {
-        document.getElementById("result").innerText = "Please enter valid numbers.";
+      if (isNaN(income) || isNaN(expenses) || isNaN(savings) || isNaN(returnRate)) {
+        document.getElementById("result").innerText = "⚠️ Please fill out all fields.";
         return;
       }
 
-      const yearlySavings = income - expenses;
-      if (yearlySavings <= 0) {
-        document.getElementById("result").innerText = "You must save more than you spend!";
+      const savingsRate = income - expenses;
+      if (savingsRate <= 0) {
+        document.getElementById("result").innerText = "❌ Expenses exceed or equal income. FIRE not possible.";
         return;
       }
 
       const fireNumber = expenses * 25;
       let years = 0;
-      let total = savings;
+      let totalSavings = savings;
 
-      while (total < fireNumber) {
-        total += yearlySavings;
-        total *= (1 + rate);
+      while (totalSavings < fireNumber && years < 100) {
+        totalSavings += savingsRate;
+        totalSavings *= (1 + returnRate);
         years++;
-        if (years > 100) break; // safety stop
       }
 
-      document.getElementById("result").innerText =
-        `You can retire in about ${years} years. FIRE number: $${fireNumber.toLocaleString()}`;
+      if (years >= 100) {
+        document.getElementById("result").innerText = "❌ You may not reach FIRE within 100 years.";
+      } else {
+        document.getElementById("result").innerText = `✅ You can reach FIRE in ~${years} years with $${fireNumber.toLocaleString()} needed.`;
+      }
     }
-
-    connectBtn.addEventListener("click", connectWallet);
   </script>
 </body>
 </html>
