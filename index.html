@@ -4,141 +4,242 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>🔥 DeFire Calculator 🔥</title>
-  <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; padding: 20px; }
-    h1 { font-size: 2.5em; color: orange; }
-    .card { background: #222; border-radius: 12px; padding: 18px; margin: 20px auto; max-width: 480px; }
-    input, button { width: 90%; padding: 10px; margin: 8px 0; border-radius: 6px; border: none; font-size: 1em; }
-    button { background: orange; font-weight: bold; cursor: pointer; }
-    button:hover { background: darkorange; }
-    #result { margin-top: 14px; font-size: 1.2rem; font-weight: 600; }
-    .info { margin: 14px 0; font-size: 1.1rem; }
-    .spinner {
-      margin: 16px auto;
-      width: 40px; height: 40px;
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top: 4px solid orange;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    :root { --bg:#111; --card:#1c1c1c; --accent:#ff6a00; --text:#fff; --muted:#bfbfbf; }
+    *{box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#0b0b0b,#2a1300);
+         color:var(--text);margin:0;padding:22px;text-align:center}
+    h1{font-size:2.3rem;margin:0 0 6px}
+    h3{margin:4px 0 16px;color:#ffd8b2;font-weight:600}
+    .card{background:rgba(0,0,0,.65);backdrop-filter:blur(4px);border-radius:16px;
+          box-shadow:0 0 18px rgba(255,106,0,.45);max-width:560px;margin:16px auto;padding:18px}
+    .row{display:flex;gap:10px;align-items:center;margin:8px 0;text-align:left}
+    label{width:46%;opacity:.95}
+    input{flex:1;background:#121212;border:none;color:#fff;padding:10px 12px;border-radius:8px;font-size:1rem}
+    .btn{display:inline-block;width:100%;border:none;border-radius:10px;padding:12px 16px;margin-top:10px;
+         background:var(--accent);color:#fff;font-weight:700;cursor:pointer;transition:.2s}
+    .btn:hover{filter:brightness(1.1)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.45);
+          font-size:.92rem;margin:4px 6px 0}
+    .ok{color:#00ffc3}.warn{color:#ffd166}.err{color:#ff6b6b}
+    #result{margin-top:10px;font-size:1.08rem;font-weight:600}
+    #chart-wrap{margin-top:14px}
+    canvas{background:#0d0d0d;border-radius:12px;padding:8px}
+    .foot{margin-top:20px;color:var(--muted);font-size:.9rem}
+    .spinner{display:inline-block;width:26px;height:26px;border:3px solid rgba(255,255,255,.3);
+             border-top:3px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin-left:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
   <h1>🔥 DeFire Calculator 🔥</h1>
+  <h3>Built on TRON • Created by FootballAlien$</h3>
+
+  <!-- Wallet / FBA -->
   <div class="card" id="walletCard">
-    <div class="info" id="walletInfo">Connecting wallet...</div>
-    <div class="info" id="balanceInfo"></div>
-    <div id="spinner" class="spinner" style="display:none;"></div>
-    <button onclick="connectWallet()">Connect Wallet</button>
+    <h2>Wallet</h2>
+    <div class="row"><label>Address</label><div class="pill" id="addr">Not connected</div></div>
+    <div class="row"><label>FBA Balance</label><div class="pill" id="fba">—</div></div>
+    <div class="row"><label>Status</label><div class="pill" id="status">Connect wallet to begin</div></div>
+    <button class="btn" id="connectBtn">🔗 Connect TronLink</button>
   </div>
 
-  <div class="card" id="calcCard" style="display:none;">
+  <!-- Calculator (gated by FBA ≥ 1000 or owner) -->
+  <div class="card" id="calc" style="display:none;">
     <h2>FIRE Calculator</h2>
-    <input type="number" id="expenses" placeholder="Yearly expenses ($)" />
-    <input type="number" id="current" placeholder="Current savings ($)" />
-    <input type="number" id="yearly" placeholder="Yearly savings ($)" />
-    <input type="number" id="apy" placeholder="APY (%)" />
-    <button onclick="calculateFIRE()">Calculate FIRE</button>
+    <div class="row">
+      <label for="expenses">Yearly expenses ($)</label>
+      <input id="expenses" type="number" placeholder="e.g. 24000" inputmode="decimal" />
+    </div>
+    <div class="row">
+      <label for="current">Current savings ($)</label>
+      <input id="current" type="number" placeholder="e.g. 115000" inputmode="decimal" />
+    </div>
+    <div class="row">
+      <label for="yearly">Yearly savings ($)</label>
+      <input id="yearly" type="number" placeholder="e.g. 20000" inputmode="decimal" />
+    </div>
+    <div class="row">
+      <label for="apy">APY / Growth (%)</label>
+      <input id="apy" type="number" placeholder="e.g. 7" inputmode="decimal" />
+    </div>
+    <button class="btn" id="calcBtn">🔥 Calculate FIRE</button>
     <div id="result"></div>
+    <div id="chart-wrap"><canvas id="growthChart" height="260"></canvas></div>
   </div>
+
+  <div class="foot">Tip: open this page in the <b>TronLink</b> in-app browser or a desktop browser with the TronLink extension.</div>
 
   <script>
-    const MIN_FBA = 1000;
-    const OWNER = "TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma";
+    // ====== CONFIG ======
+    const FBA_CONTRACT = "TNW5ABkp3v4jfeDo1vRVjxa3gtnoxP3DBN"; // Football Alien TRC20 (SunPump)
+    const MIN_FBA = 1000;                                      // required to unlock calculator
+    const OWNER_WALLET = "TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma"; // always whitelisted
+
+    // ====== DOM ======
+    const elAddr   = document.getElementById("addr");
+    const elFba    = document.getElementById("fba");
+    const elStatus = document.getElementById("status");
+    const elCalc   = document.getElementById("calc");
+    const btnConn  = document.getElementById("connectBtn");
+    const btnCalc  = document.getElementById("calcBtn");
+
+    // ====== UTIL ======
+    const fmt = (n, d=2) => (Number.isFinite(n) ? n.toLocaleString(undefined,{maximumFractionDigits:d}) : "—");
+
+    // Try to request accounts (desktop TronLink supports window.tronLink.request)
+    async function requestAccounts() {
+      try {
+        if (window.tronLink && window.tronLink.request) {
+          await window.tronLink.request({ method: 'tron_requestAccounts' });
+        }
+      } catch(_) {}
+    }
 
     async function connectWallet() {
-      if (!window.tronWeb?.ready) {
-        document.getElementById("walletInfo").innerText = "Please use TronLink browser and unlock.";
+      if (!window.tronWeb) {
+        elStatus.innerHTML = '<span class="warn">🔸 TronLink not detected.</span>';
         return;
       }
-      const addr = window.tronWeb.defaultAddress.base58;
-      document.getElementById("walletInfo").innerText = "Wallet: " + addr;
+      // prompt if needed
+      if (!window.tronWeb.ready) await requestAccounts();
 
-      if (addr === OWNER) {
-        document.getElementById("balanceInfo").innerText = "Owner — access granted.";
-        document.getElementById("calcCard").style.display = "block";
+      const tw = window.tronWeb;
+      const addr = tw.defaultAddress?.base58 || "";
+      elAddr.textContent = addr || "Unknown";
+
+      if (!addr) {
+        elStatus.innerHTML = '<span class="warn">Unlock TronLink to continue.</span>';
         return;
       }
 
-      document.getElementById("spinner").style.display = "block";
-      const fbaBalance = await fetchFbaBalance(addr);
-      document.getElementById("spinner").style.display = "none";
+      // Owner bypass
+      if (addr === OWNER_WALLET) {
+        elStatus.innerHTML = '<span class="ok">✅ Owner wallet connected — access granted.</span>';
+        elCalc.style.display = "block";
+        // Still try to show FBA balance:
+        await showFbaBalance(addr, /*enforce*/ false);
+        return;
+      }
 
-      if (fbaBalance === null) {
-        document.getElementById("balanceInfo").innerText = "Error fetching FBA balance.";
+      const ok = await showFbaBalance(addr, /*enforce*/ true);
+      if (ok) {
+        elStatus.innerHTML = '<span class="ok">✅ Whitelisted — you have enough FBA.</span>';
+        elCalc.style.display = "block";
       } else {
-        document.getElementById("balanceInfo").innerText = `FBA (SunPurchased): ${fbaBalance}`;
-        if (fbaBalance >= MIN_FBA) {
-          document.getElementById("calcCard").style.display = "block";
-        } else {
-          document.getElementById("balanceInfo").innerText += " — Not whitelisted (≥1000 required)";
-        }
+        elStatus.innerHTML = `<span class="err">⛔ Not whitelisted. Need at least ${MIN_FBA} FBA.</span>`;
+        elCalc.style.display = "none";
       }
     }
 
-    async function fetchFbaBalance(wallet) {
-      const query = {
-        query: `
-          {
-            Tron(network: tron) {
-              Events(where: {
-                Event: { name: { is: "TokenPurchased" } }
-                Arguments: {
-                  Name: { is: "buyer" }
-                  Value: { address: { is: "${wallet}" } }
-                }
-              }) {
-                Arguments {
-                  Name
-                  Value { bigInteger }
-                }
-              }
-            }
-          }`
-      };
+    // Fetch FBA balance via TronScan public API (no key)
+    async function showFbaBalance(address, enforce) {
+      elFba.innerHTML = 'Fetching… <span class="spinner"></span>';
       try {
-        const res = await fetch("https://graphql.bitquery.io", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-API-KEY": "YOUR_BITQUERY_API_KEY_HERE" },
-          body: JSON.stringify(query)
-        });
+        const url = `https://apilist.tronscanapi.com/api/account/tokens?address=${address}`;
+        const res = await fetch(url, { headers: { 'accept': 'application/json' } });
+        if (!res.ok) throw new Error("TronScan HTTP " + res.status);
         const json = await res.json();
-        const events = json.data?.Tron?.Events || [];
-        const total = events.reduce((sum, ev) => {
-          const arg = ev.Arguments.find(a => a.Name === "amount");
-          return sum + (arg ? Number(arg.Value.bigInteger) : 0);
-        }, 0);
-        return total;
+        const list = json?.data || json?.tokens || []; // handle variants
+
+        // Try multiple shapes to find token by contract or symbol
+        let token = null;
+        const norm = (s) => (s||"").toString().trim();
+        for (const t of list) {
+          const byAddr =
+            norm(t.tokenId) === FBA_CONTRACT ||
+            norm(t.tokenAddress) === FBA_CONTRACT ||
+            norm(t.contract_address) === FBA_CONTRACT;
+          const bySymbol = norm(t.tokenAbbr) === "FBA" || norm(t.symbol) === "FBA";
+          if (byAddr || bySymbol) { token = t; break; }
+        }
+
+        if (!token) {
+          elFba.textContent = "0 FBA";
+          return !enforce; // if not enforcing, still allow
+        }
+
+        const raw = Number(token.balance ?? token.quantity ?? token.amount ?? 0);
+        const dec = Number(token.tokenDecimal ?? token.decimals ?? 6);
+        const bal = raw / Math.pow(10, Number.isFinite(dec) ? dec : 6);
+        elFba.textContent = `${fmt(bal, 6)} FBA`;
+
+        if (!enforce) return true;
+        return bal >= MIN_FBA;
       } catch (e) {
-        console.error("Bitquery error:", e);
-        return null;
+        console.error("FBA balance fetch error:", e);
+        elFba.textContent = "Error fetching";
+        return !enforce;
       }
     }
 
-    function calculateFIRE() {
-      const e=Number(document.getElementById("expenses").value),
-        c=Number(document.getElementById("current").value),
-        y=Number(document.getElementById("yearly").value),
-        r=Number(document.getElementById("apy").value)/100;
+    // FIRE calculator + chart
+    let chart;
+    function calcFire() {
+      const expenses = Number(document.getElementById("expenses").value);
+      const current  = Number(document.getElementById("current").value);
+      const yearly   = Number(document.getElementById("yearly").value);
+      const apyPct   = Number(document.getElementById("apy").value);
+
       const out = document.getElementById("result");
-      if ([e,c,y,r].some(x=>!isFinite(x))) {
-        out.innerText = "Please enter valid numbers.";
+      if (![expenses,current,yearly,apyPct].every(x => Number.isFinite(x) && x >= 0)) {
+        out.innerHTML = '<span class="warn">⚠️ Enter valid non-negative numbers.</span>';
         return;
       }
-      const target = e*25;
-      let bal=c, yrs=0;
-      while (bal<target && yrs<100) {
-        bal = bal*(1+r)+y;
-        yrs++;
+
+      const r = apyPct / 100;
+      const target = expenses * 25; // 4% rule
+      let bal = current;
+      let years = 0;
+
+      const labels = ["0"];
+      const series = [bal];
+
+      // simulate up to 60 years
+      while (bal < target && years < 60) {
+        bal = bal * (1 + r) + yearly;
+        years++;
+        labels.push(String(years));
+        series.push(bal);
       }
-      out.innerText = bal>=target
-        ? `FIRE target $${target.toLocaleString()} in ${yrs} yrs. Final ~$${bal.toFixed(0)}`
-        : "FIRE not possible within 100 years.";
+
+      if (bal >= target) {
+        out.innerHTML = `🔥 FIRE target: <b>$${fmt(target)}</b><br/>⏳ Time to FI: <b>${years} year${years!==1?"s":""}</b><br/>📈 Projected balance at FI: <b>$${fmt(bal)}</b>`;
+      } else {
+        out.innerHTML = `😬 With these inputs, the FIRE target ($${fmt(target)}) isn’t reached within 60 years.`;
+      }
+
+      // draw/update chart
+      const ctx = document.getElementById("growthChart").getContext("2d");
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Projected Balance ($)",
+            data: series,
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { ticks: { callback: v => "$" + fmt(v, 0) } }
+          },
+          plugins: {
+            legend: { labels: { color: "#fff" } }
+          }
+        }
+      });
     }
 
-    window.addEventListener("load", () => setTimeout(connectWallet, 300));
+    // UI hooks
+    btnConn.addEventListener("click", connectWallet);
+    btnCalc.addEventListener("click", calcFire);
+
+    // Auto-attempt connect after load (gives TronLink a moment to inject)
+    window.addEventListener("load", () => setTimeout(connectWallet, 400));
   </script>
 </body>
 </html>
