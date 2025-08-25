@@ -2,160 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DeFire Calculator</title>
-  <script src="https://cdn.jsdelivr.net/npm/tronweb@4.4.0/dist/TronWeb.js"></script>
+  <title>🔥 DeFire Calculator 🔥</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
+      margin: 20px;
+      background: #111;
+      color: #eee;
       text-align: center;
-      padding: 20px;
     }
     h1 {
-      color: #ff9800;
-      font-size: 2.5em;
+      color: orange;
+      font-size: 2.2em;
     }
-    .wallet, .balance {
-      margin: 15px 0;
-      font-size: 1.2em;
-    }
-    .calculator {
-      background: #161b22;
+    .card {
+      background: #222;
       padding: 20px;
       border-radius: 12px;
-      max-width: 500px;
-      margin: 0 auto;
-      box-shadow: 0 0 15px rgba(255,152,0,0.3);
+      margin: 20px auto;
+      width: 400px;
+      box-shadow: 0 0 20px rgba(255,140,0,0.4);
     }
-    label {
-      display: block;
-      margin: 10px 0 5px;
-    }
-    input {
+    input, button {
       padding: 10px;
-      width: 90%;
+      margin: 5px;
+      border-radius: 8px;
       border: none;
-      border-radius: 6px;
-      margin-bottom: 15px;
     }
     button {
-      background: #ff9800;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 6px;
-      color: #fff;
+      background: orange;
+      color: black;
       cursor: pointer;
-      font-size: 1em;
-      margin: 10px;
-    }
-    button:hover {
-      background: #e68900;
-    }
-    .result {
-      margin-top: 20px;
-      font-size: 1.3em;
-      color: #4caf50;
-    }
-    .error {
-      margin-top: 20px;
-      font-size: 1.2em;
-      color: #ff4c4c;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>DeFire Calculator</h1>
-
-  <div class="wallet">
-    Wallet: <span id="walletAddress">Not connected</span>
+  <h1>🔥 DeFire Calculator 🔥</h1>
+  
+  <div class="card">
+    <p><strong>Connected Wallet:</strong> <span id="wallet">Not connected</span></p>
+    <p><strong>Your FBA Balance:</strong> <span id="fbaBalance">0</span></p>
+    <button onclick="connectWallet()">Connect Wallet</button>
   </div>
-  <div class="balance">
-    FBA Balance: <span id="fbaBalance">0</span>
-  </div>
 
-  <div class="calculator" id="calculator" style="display:none;">
+  <div class="card">
     <h2>FIRE Calculator</h2>
-    <label for="currentSavings">Current Savings ($):</label>
-    <input type="number" id="currentSavings" placeholder="Enter amount" />
-
-    <label for="annualExpenses">Annual Expenses ($):</label>
-    <input type="number" id="annualExpenses" placeholder="Enter amount" />
-
-    <label for="annualSavings">Annual Savings ($):</label>
-    <input type="number" id="annualSavings" placeholder="Enter amount" />
-
-    <label for="investmentReturn">Expected Annual Return (%):</label>
-    <input type="number" id="investmentReturn" value="5" />
-
+    <p>Enter your yearly expenses and savings to calculate FIRE number:</p>
+    <input type="number" id="expenses" placeholder="Yearly Expenses ($)">
+    <input type="number" id="savings" placeholder="Yearly Savings ($)">
     <button onclick="calculateFIRE()">Calculate</button>
-    <div class="result" id="result"></div>
+    <p id="result"></p>
   </div>
-
-  <div class="error" id="error"></div>
-
-  <button onclick="connectWallet()">Connect Wallet</button>
 
   <script>
-    const fbaContractAddress = "TNW5ABkp3v4jfeDo1vRVjxa3gtnoxP3DBN";
-    let tronWeb, walletAddress;
+    const FBA_CONTRACT = "TNW5ABkp3v4jfeDo1vRVjxa3gtnoxP3DBN";
+    let tronWeb;
 
     async function connectWallet() {
-      if (window.tronWeb && window.tronWeb.ready) {
-        tronWeb = window.tronWeb;
-        walletAddress = tronWeb.defaultAddress.base58;
-        document.getElementById("walletAddress").innerText = walletAddress;
-        await checkWhitelist();
-      } else {
-        alert("Please install TronLink wallet!");
+      if (!window.tronWeb || !window.tronWeb.ready) {
+        alert("Please install TronLink and unlock your wallet.");
+        return;
       }
+      tronWeb = window.tronWeb;
+      const wallet = tronWeb.defaultAddress.base58;
+      document.getElementById("wallet").textContent = wallet;
+
+      await fetchBalance(wallet);
     }
 
-    async function checkWhitelist() {
+    async function fetchBalance(wallet) {
       try {
-        const contract = await tronWeb.contract().at(fbaContractAddress);
-        const balance = await contract.balanceOf(walletAddress).call();
+        const contract = await tronWeb.contract().at(FBA_CONTRACT);
+        const balance = await contract.balanceOf(wallet).call();
         const decimals = await contract.decimals().call();
-        const formattedBalance = parseInt(balance._hex, 16) / (10 ** decimals);
-
-        document.getElementById("fbaBalance").innerText = formattedBalance.toFixed(2);
-
-        if (formattedBalance >= 1000) {
-          document.getElementById("calculator").style.display = "block";
-          document.getElementById("error").innerText = "";
-        } else {
-          document.getElementById("calculator").style.display = "none";
-          document.getElementById("error").innerText = "You need at least 1000 FBA tokens to use the calculator.";
-        }
+        const formatted = balance / (10 ** decimals);
+        document.getElementById("fbaBalance").textContent = formatted.toLocaleString();
       } catch (err) {
-        console.error(err);
-        document.getElementById("error").innerText = "Error fetching FBA balance.";
+        console.error("Balance error:", err);
+        document.getElementById("fbaBalance").textContent = "Error fetching";
       }
     }
 
     function calculateFIRE() {
-      const currentSavings = parseFloat(document.getElementById("currentSavings").value) || 0;
-      const annualExpenses = parseFloat(document.getElementById("annualExpenses").value) || 0;
-      const annualSavings = parseFloat(document.getElementById("annualSavings").value) || 0;
-      const investmentReturn = (parseFloat(document.getElementById("investmentReturn").value) || 0) / 100;
+      const expenses = parseFloat(document.getElementById("expenses").value);
+      const savings = parseFloat(document.getElementById("savings").value);
 
-      const fireNumber = annualExpenses * 25;
-      let years = 0;
-      let savings = currentSavings;
-
-      while (savings < fireNumber && years < 100) {
-        savings = (savings + annualSavings) * (1 + investmentReturn);
-        years++;
+      if (isNaN(expenses) || isNaN(savings)) {
+        document.getElementById("result").textContent = "Please enter valid numbers.";
+        return;
       }
 
-      if (savings >= fireNumber) {
-        document.getElementById("result").innerText =
-          `You can retire in ${years} years with $${savings.toFixed(2)} saved.`;
-      } else {
-        document.getElementById("result").innerText =
-          "With these inputs, FIRE is not reachable within 100 years.";
-      }
+      const fireNumber = expenses * 25;
+      const yearsToFire = fireNumber / savings;
+
+      document.getElementById("result").textContent = 
+        `🔥 Your FIRE number is $${fireNumber.toLocaleString()}.
+        With your savings rate, you can retire in about ${yearsToFire.toFixed(1)} years. 🔥`;
     }
   </script>
 </body>
