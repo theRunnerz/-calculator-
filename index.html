@@ -3,383 +3,444 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>DeFire On-Chain Net Worth (WinkLink)</title>
+  <title>DeFire — Portfolio & FIRE</title>
   <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
   <style>
-    :root{--bg:#0b0b0f;--card:#141416;--accent:#ff6a00;--ok:#00ffc3;--warn:#ffd166;--err:#ff6b6b}
-    body{font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(135deg,#0b0b0f,#1a0a00);color:#fff;margin:0;padding:20px;display:flex;justify-content:center}
+    :root{--bg:#0b0b0f;--card:#121214;--accent:#ff6600;--muted:#9aa;--ok:#00ffc3}
+    body{font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(135deg,#0b0b0f,#1a0a00);color:#fff;margin:0;padding:18px;display:flex;justify-content:center}
     .wrap{width:100%;max-width:980px}
-    h1{margin:0;font-size:1.9rem;text-align:center}
-    .card{background:rgba(0,0,0,0.5);border-radius:12px;padding:16px;margin-top:16px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+    header{display:flex;align-items:center;gap:14px;justify-content:space-between}
+    h1{margin:6px 0;font-size:1.4rem}
+    nav{display:flex;gap:8px}
+    button.tab{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;color:#fff;cursor:pointer}
+    .active{background:var(--accent);color:#000;border-color:var(--accent)}
+    .card{background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;margin-top:14px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
     .row{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
-    label{min-width:120px;opacity:.9}
-    input[type=text]{flex:1;padding:10px;border-radius:8px;border:none;background:#0f1113;color:#fff}
-    button{background:var(--accent);border:none;color:#fff;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:700}
+    label{min-width:140px;opacity:.9}
+    textarea,input[type=text],input[type=number]{flex:1;padding:10px;border-radius:8px;border:none;background:#0f1113;color:#fff;min-width:0}
     .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-family:ui-monospace,monospace}
-    .muted{opacity:.8;font-size:.9rem}
-    .total{font-size:1.35rem;font-weight:800;text-align:center;margin-top:12px}
+    .muted{color:var(--muted);font-size:0.9rem}
+    .total{font-size:1.25rem;font-weight:800;text-align:center;margin-top:12px}
     .small{font-size:.9rem;opacity:.85}
-    .list{margin-top:8px}
     .addr{font-family:ui-monospace,monospace;color:#9fd8ff}
-    .warn{color:var(--warn)}
     .ok{color:var(--ok)}
-    .err{color:var(--err)}
-    .spinner{width:18px;height:18px;border:3px solid rgba(255,255,255,0.15);border-top:3px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;margin-left:8px}
+    .spinner{width:16px;height:16px;border:3px solid rgba(255,255,255,0.12);border-top:3px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle}
     @keyframes spin{to{transform:rotate(360deg)}}
-    footer{margin-top:14px;color:#cfcfcf;text-align:center;font-size:.9rem}
-    .skipped{margin-top:8px;color:#ffd8d8}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+    footer{margin-top:14px;color:#cfcfcf;text-align:center;font-size:.85rem}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>🔥 DeFire On-Chain Net Worth (WinkLink)</h1>
+    <header>
+      <div>
+        <h1>🔥 DeFire — Portfolio & FIRE</h1>
+        <div class="muted">On-chain pricing (WinkLink) • Tronscan token discovery • manual wallet input</div>
+      </div>
+      <nav>
+        <button id="tabPortfolio" class="tab active">Portfolio</button>
+        <button id="tabFire" class="tab">FIRE Calculator</button>
+      </nav>
+    </header>
 
-    <div class="card" id="walletCard">
-      <h2 style="margin:0 0 8px">Wallet Access</h2>
-      <div class="row"><label>Connected Wallet</label><div class="pill addr" id="connected">Not connected</div></div>
-      <div class="row"><label>FBA Balance</label><div class="pill" id="fba">—</div></div>
-      <div class="row"><label>Access Status</label><div class="pill" id="status">Connect TronLink to begin</div></div>
+    <!-- Wallet / Access card -->
+    <div class="card" id="accessCard">
+      <div class="row"><label>Connected wallet</label><div class="pill addr" id="connected">Not connected</div></div>
+      <div class="row"><label>FBA balance</label><div class="pill" id="fba">—</div></div>
+      <div class="row"><label>Access</label><div class="pill" id="status">Connect TronLink to begin</div></div>
       <div class="row">
         <button id="btnConnect">🔗 Connect TronLink</button>
         <div class="muted" style="margin-left:auto">Whitelist: owner OR ≥1000 FBA unlocks Portfolio</div>
       </div>
     </div>
 
-    <div class="card" id="portfolioCard" style="display:none">
-      <h2 style="margin:0 0 8px">Portfolio — add wallets</h2>
-      <div class="row">
-        <input id="walletInput" type="text" placeholder="Enter TRON address (T...); paste comma-separated for many" />
-        <button id="btnAdd">+ Add</button>
-      </div>
-      <div class="list" id="list"></div>
+    <!-- Portfolio tab -->
+    <div id="portfolioPane" class="card">
+      <h3 style="margin:0 0 8px">Portfolio — manual wallet input</h3>
 
-      <div class="row" style="margin-top:12px">
-        <button id="btnCalc">🧮 Calculate Net Worth (USD)</button>
-        <div class="pill" id="progress">Idle</div>
+      <div class="row">
+        <label>Wallets (one per line)</label>
+        <textarea id="walletsText" placeholder="Paste T... addresses here, one per line" rows="5"></textarea>
+      </div>
+
+      <div class="row">
+        <label>Optional: token contracts to check</label>
+        <input id="tokenContractsInput" placeholder="TUSDT..., TUSDC..., TFBA..., comma separated"/>
+      </div>
+
+      <div class="row">
+        <label>Optional: JustLend comptroller or jTokens</label>
+        <input id="justlendInput" placeholder="Comptroller or comma-separated jTokens"/>
+      </div>
+
+      <div class="row">
+        <button id="btnCalcNet">🧮 Calculate Net Worth (on-chain)</button>
+        <div id="progress" class="pill">Idle</div>
       </div>
 
       <div class="total" id="grand">Grand Total: —</div>
-      <div class="skipped" id="skipped"></div>
-      <div class="small muted" style="margin-top:8px">Note: tokens without a WinkLink oracle are excluded from total and listed above.</div>
+
+      <div style="margin-top:12px">
+        <strong>Unpriced / Manual</strong>
+        <div id="unpriced" class="muted">No results yet</div>
+      </div>
+
+      <div style="margin-top:12px">
+        <button id="btnExport" class="tab">Export JSON</button>
+        <button id="btnShowConsole" class="tab">Show details (console)</button>
+      </div>
     </div>
 
-    <footer>All reads are client-side. No keys uploaded. Open in TronLink (mobile) or desktop TronLink extension.</footer>
+    <!-- FIRE tab -->
+    <div id="firePane" class="card" style="display:none">
+      <h3 style="margin:0 0 8px">FIRE Calculator</h3>
+      <div class="row"><label>Yearly expenses (CAD)</label><input id="expenses" type="number" placeholder="e.g. 24000" /></div>
+      <div class="row"><label>Current savings (CAD)</label><input id="current" type="number" placeholder="e.g. 116247" /></div>
+      <div class="row"><label>Yearly savings (CAD)</label><input id="savings" type="number" placeholder="e.g. 20000" /></div>
+      <div class="row"><label>Expected APY (%)</label><input id="apy" type="number" placeholder="e.g. 7" /></div>
+      <div class="row"><button id="btnCalcFire">🔥 Calculate FIRE</button><div id="fireResult" class="pill">Idle</div></div>
+      <div id="fireOutput" style="margin-top:12px" class="muted"></div>
+    </div>
+
+    <footer style="margin-top:16px">Client-side only • No private keys leave your browser • Open in TronLink (mobile) or TronLink extension (desktop)</footer>
   </div>
 
 <script>
 /* ================== CONFIG ==================
-   - OWNER_WALLET: owner bypass
-   - FBA_CONTRACT: Football Alien token contract (TRC20)
-   - FBA_MIN: how many FBA required to unlock
-   - ORACLE_BY_SYMBOL: common mapping symbol -> WinkLink oracle address
-   - ORACLE_BY_CONTRACT: optional map where you supply TRC20 contract -> oracle address
-   - TRONSCan endpoints used for token lists (no API key required for moderate usage)
+   Edit these mappings if you want to add extra known oracles.
+   ORACLE_BY_SYMBOL: WinkLink feed addresses (mainnet)
+   ORACLE_BY_CONTRACT: explicit tokenContract => oracleAddress
+   OWNER_WALLET: owner bypass
+   FBA_CONTRACT: Football Alien token contract
+   FBA_MIN: how many tokens required to unlock
    ============================================ */
 
 const OWNER_WALLET = "TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma";
 const FBA_CONTRACT = "TNW5ABkp3v4jfeDo1vRVjxa3gtnoxP3DBN";
-const FBA_MIN = 1000; // tokens
+const FBA_MIN = 1000;
 
-// WinkLink feeds (mainnet) — common symbols
 const ORACLE_BY_SYMBOL = {
-  TRX: "TR5HtpPK4gX4RFC4DCBUHfFgsGkGFEzSAb", // TRX/USD
-  USDT: "TKePc46n5CiUCR8LL788TFeKA4kjvNnuem", // USDT/USD
-  USDC: "TNu3zS55MP4KnBBP6aw1nHSzRpc3CXAxm", // USDC/USD
-  SUN: "TRMgzSPsuWEcVpd5hv19XtLeCk8Z799sZa",  // SUN/USD
-  JST: "TE5rKoDzKmpVAQp1sn7x6V8biivR3d5r47",  // JST/USD
-  BTT: "TBAAW545oJ6iTxqzezVagrSUzCpz1S8eR",  // BTT/USD
-  WIN: "TSCef3LT3jpLwwXCWhZe3hZoMsYk1ZLif2",  // WIN/USD
-  BTC: "TQoijQ1iZKRgJsAAWNPMu6amgtCJ3WMUV7",  // BTC/USD
-  ETH: "TR2yWYWovJaSM7TfZq7L7sT7ZRugdJJQmL"   // ETH/USD
+  TRX: "TR5HtpPK4gX4RFC4DCBUHfFgsGkGFEzSAb",
+  USDT: "TKePc46n5CiUCR8LL788TFeKA4kjvNnuem",
+  USDC: "TNu3zS55MP4KnBBP6aw1nHSzRpc3CXAxm",
+  SUN: "TRMgzSPsuWEcVpd5hv19XtLeCk8Z799sZa",
+  JST: "TE5rKoDzKmpVAQp1sn7x6V8biivR3d5r47",
+  BTT: "TBAAW545oJ6iTxqzezVagrSUzCpz1S8eR",
+  BTC: "TQoijQ1iZKRgJsAAWNPMu6amgtCJ3WMUV7",
+  ETH: "TR2yWYWovJaSM7TfZq7L7sT7ZRugdJJQmL"
 };
 
-// Optional explicit contract -> oracle mapping (paste token contract => oracle if needed)
 const ORACLE_BY_CONTRACT = {
-  // "TXXXXXXXX...": "TOracleAddress..."
+  // "TTokenContract...": "TOracleAddress..."
 };
 
-// Tronscan API endpoints
+// Tronscan token endpoint
 const TSCAN_TOKENS   = addr => `https://apilist.tronscanapi.com/api/account/tokens?address=${addr}&limit=200`;
-const TSCAN_ACCOUNT  = addr => `https://apilist.tronscanapi.com/api/account?address=${addr}`;
 
-/* ============ DOM ============ */
+/* ===== DOM ===== */
 const elConnected = document.getElementById("connected");
 const elFba = document.getElementById("fba");
 const elStatus = document.getElementById("status");
-const elPortfolioCard = document.getElementById("portfolioCard");
-const elWalletInput = document.getElementById("walletInput");
-const elList = document.getElementById("list");
 const elBtnConnect = document.getElementById("btnConnect");
-const elBtnAdd = document.getElementById("btnAdd");
-const elBtnCalc = document.getElementById("btnCalc");
+const elBtnCalcNet = document.getElementById("btnCalcNet");
 const elProgress = document.getElementById("progress");
 const elGrand = document.getElementById("grand");
-const elSkipped = document.getElementById("skipped");
+const elUnpriced = document.getElementById("unpriced");
+const elWalletsText = document.getElementById("walletsText");
+const elTokenContractsInput = document.getElementById("tokenContractsInput");
+const elJustlendInput = document.getElementById("justlendInput");
+const elExport = document.getElementById("btnExport");
+const elShowConsole = document.getElementById("btnShowConsole");
 
-/* ============ STATE ============ */
+const elTabPortfolio = document.getElementById("tabPortfolio");
+const elTabFire = document.getElementById("tabFire");
+const portfolioPane = document.getElementById("portfolioPane");
+const firePane = document.getElementById("firePane");
+
+/* ===== state ===== */
 let tronWebInstance = null;
 let connectedAddr = "";
-let watchList = []; // wallets to include (connected wallet will be added automatically when whitelisted)
+let lastResult = null;
 
-/* ============ HELPERS ============ */
-const fmtUSD = n => Number(n).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2});
+/* ===== helpers ===== */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const uniqPush = (arr, v) => { if(!arr.includes(v)) arr.push(v); };
-
-function sanitizeAddr(s){ return (s||"").trim(); }
-
-// Convert BigInt raw + decimals to JS Number (safe-ish for UI)
-// show up to 8 decimals for small values
-function toNumberFromRaw(rawBigInt, decimals){
-  try{
+const toNumberFromRaw = (rawBigInt, decimals) => {
+  try {
     const scale = 10n ** BigInt(decimals);
     const intPart = rawBigInt / scale;
     const frac = rawBigInt % scale;
     let fracStr = frac.toString().padStart(decimals,"0");
-    // limit fractional digits for display and conversion
-    fracStr = fracStr.slice(0, 8).replace(/0+$/,"");
+    fracStr = fracStr.slice(0,8).replace(/0+$/,"");
     const s = fracStr ? `${intPart.toString()}.${fracStr}` : `${intPart.toString()}`;
     return Number(s);
-  }catch(e){ return 0; }
-}
+  } catch(e) { return 0; }
+};
+const fmtUSD = n => Number(n).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2});
 
-/* ============ WINKLINK ORACLE READ ============ */
-// Reads latestAnswer() and decimals() from a WinkLink oracle contract address
-async function readOraclePriceUSD(oracleAddr){
-  try{
-    const c = await tronWebInstance.contract().at(oracleAddr);
-    // read decimals if available
-    let od = 8;
-    try{
-      const d = await c.decimals().call();
-      od = Number(d?.toString?.() ?? d ?? 8);
-      if (!Number.isFinite(od)) od = 8;
-    }catch(_){ od = 8; }
-    const ans = await c.latestAnswer().call();
-    const raw = BigInt(ans?.toString?.() ?? ans ?? "0");
-    if (raw <= 0n) return null;
-    // convert to JS number scaled to actual USD value
-    return Number(raw) / Math.pow(10, od);
-  }catch(e){
-    console.warn("Oracle read failed", oracleAddr, e);
-    return null;
+/* ===== tab handlers ===== */
+elTabPortfolio.onclick = () => { elTabPortfolio.classList.add("active"); elTabFire.classList.remove("active"); portfolioPane.style.display="block"; firePane.style.display="none"; };
+elTabFire.onclick = () => { elTabFire.classList.add("active"); elTabPortfolio.classList.remove("active"); portfolioPane.style.display="none"; firePane.style.display="block"; };
+
+/* ===== TronLink connect & whitelist ===== */
+elBtnConnect.onclick = async () => {
+  if(!window.tronWeb || !window.tronWeb.ready){
+    elStatus.innerHTML = '<span style="color:#ffd166">Open in TronLink and unlock</span>';
+    return;
   }
-}
-
-/* ============ BALANCE FETCHERS ============ */
-async function fetchTRXBalance(addr){
-  try{
-    // tronWeb.trx.getBalance returns SUN (integer) — might be number or string
-    const sun = await tronWebInstance.trx.getBalance(addr);
-    const sunBN = BigInt(typeof sun === "number" ? Math.trunc(sun) : String(sun));
-    return toNumberFromRaw(sunBN, 6); // TRX has 6 decimals (sun)
-  }catch(e){
-    console.error("TRX balance error", addr, e);
-    return 0;
+  tronWebInstance = window.tronWeb;
+  connectedAddr = tronWebInstance.defaultAddress.base58 || "";
+  elConnected.textContent = connectedAddr || "Unknown";
+  elStatus.innerHTML = '<span class="muted">Checking whitelist… <span class="spinner"></span></span>';
+  const ok = await checkWhitelist(connectedAddr);
+  if(ok) {
+    elStatus.innerHTML = '<span class="ok">Access granted</span>';
   }
-}
+};
 
-async function fetchTRC20List(addr){
-  // Use Tronscan tokens endpoint — returns token list and balances
-  try{
-    const res = await fetch(TSCAN_TOKENS(addr));
-    if(!res.ok) throw new Error("Tronscan HTTP " + res.status);
-    const json = await res.json();
-    const list = json?.data || json?.tokens || [];
-    // Normalize each token into {symbol, name, contract, tokenDecimal, balanceRaw (BigInt)}
-    return list.map(t => {
-      // tronscan returns different shapes in different calls; handle a few forms
-      const contract = t.tokenId || t.tokenAddress || t.contract_address || t.contract || "";
-      const decimals = Number(t.tokenDecimal ?? t.decimals ?? t.decimalsToken ?? 6);
-      const rawStr = String(t.balance ?? t.amount ?? t.quantity ?? t.rawBalance ?? "0");
-      // Some endpoints return already divided number; prefer raw if available (they usually have raw)
-      return {
-        symbol: t.tokenAbbr || t.symbol || t.tokenName || "UNKNOWN",
-        name: t.tokenName || t.name || "",
-        contract,
-        decimals,
-        balanceRaw: BigInt(rawStr)
-      };
-    });
-  }catch(e){
-    console.error("TRC20 list fetch failed for", addr, e);
-    return [];
-  }
-}
-
-/* ============ ORACLE LOOKUP ============ */
-async function getOracleForToken(symbol, contract){
-  // First try explicit contract map
-  if (contract && ORACLE_BY_CONTRACT[contract]) return ORACLE_BY_CONTRACT[contract];
-  // Then try symbol mapping (uppercased)
-  const s = (symbol||"").toString().toUpperCase();
-  if (ORACLE_BY_SYMBOL[s]) return ORACLE_BY_SYMBOL[s];
-  return null;
-}
-
-/* ============ ACCESS CONTROL: FBA check ============ */
+/* check whitelist: owner or FBA >= FBA_MIN */
 async function checkWhitelist(addr){
   try{
-    if (addr === OWNER_WALLET){
-      elFba.textContent = "Owner";
-      elStatus.innerHTML = '<span class="ok">✅ Owner connected — access granted.</span>';
-      return true;
-    }
-    // read FBA balance via contract
+    if(!tronWebInstance) return false;
+    if(addr === OWNER_WALLET){ elFba.textContent = "Owner"; return true; }
     const c = await tronWebInstance.contract().at(FBA_CONTRACT);
-    const raw = await c.balanceOf(addr).call();
-    // get decimals (if available)
+    const raw = await c.balanceOf(addr).call().catch(()=>0);
     let dec = 6;
-    try{ const d = await c.decimals().call(); dec = Number(d?.toString?.() ?? d ?? 6); }catch(_){ dec = 6; }
+    try{ const d = await c.decimals().call(); dec = Number(d?.toString?.() ?? d ?? 6); }catch(_){}
     const bal = toNumberFromRaw(BigInt(raw?.toString?.() ?? raw ?? "0"), dec);
     elFba.textContent = `${bal.toLocaleString(undefined,{maximumFractionDigits:6})} FBA`;
-    if (bal >= FBA_MIN){
-      elStatus.innerHTML = '<span class="ok">✅ Whitelisted — enough FBA.</span>';
-      return true;
-    } else {
-      elStatus.innerHTML = `<span class="err">⛔ Need ≥ ${FBA_MIN} FBA to unlock.</span>`;
-      return false;
-    }
+    if(bal >= FBA_MIN) return true;
+    elStatus.innerHTML = `<span style="color:#ff6b6b">Need ≥ ${FBA_MIN} FBA to unlock</span>`;
+    return false;
   }catch(e){
-    console.error("FBA check failed", e);
+    console.error("Whitelist check failed", e);
     elFba.textContent = "Error";
-    elStatus.innerHTML = '<span class="err">⚠️ Error checking FBA balance.</span>';
+    elStatus.innerHTML = `<span style="color:#ff6b6b">Error checking FBA</span>`;
     return false;
   }
 }
 
-/* ============ APP FLOW ============ */
-async function connectWallet(){
-  if (!window.tronWeb){
-    elStatus.innerHTML = '<span class="warn">🔸 TronLink not detected. Open in TronLink browser and unlock.</span>';
-    return;
-  }
-  // Wait for tronWeb injection and readiness
-  tronWebInstance = window.tronWeb;
-  connectedAddr = tronWebInstance.defaultAddress?.base58 || "";
-  elConnected.textContent = connectedAddr || "Unknown";
-  if(!connectedAddr){
-    elStatus.innerHTML = '<span class="warn">Unlock TronLink to continue.</span>';
-    return;
-  }
-
-  elStatus.innerHTML = '<span class="muted">Checking whitelist… <span class="spinner"></span></span>';
-  const allowed = await checkWhitelist(connectedAddr);
-  if (allowed){
-    elPortfolioCard.style.display = "block";
-    uniqPush(watchList, connectedAddr); // add connected wallet by default
-    renderWatchList();
-  } else {
-    elPortfolioCard.style.display = "none";
+/* ===== WinkLink oracle read (on-chain) ===== */
+async function readOraclePriceUSD(oracleAddr){
+  try{
+    const c = await tronWebInstance.contract().at(oracleAddr);
+    let od = 8;
+    try{ const d = await c.decimals().call(); od = Number(d?.toString?.() ?? d ?? 8); }catch(_){}
+    const ans = await c.latestAnswer().call();
+    const raw = BigInt(ans?.toString?.() ?? ans ?? "0");
+    if (raw <= 0n) return null;
+    return Number(raw) / Math.pow(10, od);
+  }catch(e){
+    console.warn("oracle read failed", oracleAddr, e);
+    return null;
   }
 }
 
-function renderWatchList(){
-  elList.innerHTML = "";
-  watchList.forEach((a,i) => {
-    const row = document.createElement("div");
-    row.className = "row";
-    const left = document.createElement("div");
-    left.className = "addr";
-    left.textContent = a;
-    const rm = document.createElement("button");
-    rm.textContent = "Remove";
-    rm.onclick = () => { watchList.splice(i,1); renderWatchList(); };
-    row.appendChild(left);
-    row.appendChild(rm);
-    elList.appendChild(row);
-  });
+async function getPriceForToken(symbol, contract){
+  if(contract && ORACLE_BY_CONTRACT[contract]) return await readOraclePriceUSD(ORACLE_BY_CONTRACT[contract]);
+  if(symbol && ORACLE_BY_SYMBOL[symbol.toUpperCase()]) return await readOraclePriceUSD(ORACLE_BY_SYMBOL[symbol.toUpperCase()]);
+  return null;
 }
 
-/* ============ CORE: calculate net worth across watchList ============ */
-async function calculateNetWorth(){
-  if(!tronWebInstance) { alert("Connect TronLink first"); return; }
-  if(watchList.length === 0) { alert("Add at least one wallet"); return; }
+/* ===== Tronscan token list (discovery & fallback price) ===== */
+async function fetchTronscanTokens(addr){
+  try{
+    const res = await fetch(TSCAN_TOKENS(addr));
+    if(!res.ok) throw new Error("Tronscan HTTP " + res.status);
+    const json = await res.json();
+    // tronscan returns data: array in .data or .tokens
+    const list = json?.data || json?.tokens || [];
+    return list.map(t => {
+      // Normalize fields from various shapes
+      const contract = t.tokenId || t.tokenAddress || t.contract_address || t.contract || t.token_id || t.token_id_address || "";
+      const decimals = Number(t.tokenDecimal ?? t.decimals ?? t.decimalsToken ?? t.decimal ?? 6);
+      const balanceRaw = String(t.balance ?? t.amount ?? t.quantity ?? t.rawBalance ?? t.value ?? 0);
+      // priceUsd fallback (Tronscan sometimes includes price info)
+      const priceUsd = t.price_usd || t.price || t.usdPrice || null;
+      return {
+        symbol: t.tokenAbbr || t.symbol || t.tokenName || t.name || "UNKNOWN",
+        name: t.tokenName || t.name || "",
+        contract,
+        decimals,
+        balanceRaw,
+        priceUsd
+      };
+    });
+  }catch(e){
+    console.warn("Tronscan tokens fetch failed for", addr, e);
+    return [];
+  }
+}
+
+/* ===== TRX balance ===== */
+async function fetchTRX(addr){
+  try{
+    const sun = await tronWebInstance.trx.getBalance(addr);
+    const sunBN = BigInt(typeof sun === "number" ? Math.trunc(sun) : String(sun));
+    return toNumberFromRaw(sunBN, 6);
+  }catch(e){ console.warn("TRX fetch error", addr, e); return 0; }
+}
+
+/* ===== TRC20 balance helper (on-chain) - optional use ===== */
+async function fetchTRC20Balance(contractAddr, addr){
+  try{
+    const c = await tronWebInstance.contract().at(contractAddr);
+    const raw = await c.balanceOf(addr).call();
+    let dec = 6;
+    try{ const d = await c.decimals().call(); dec = Number(d?.toString?.() ?? d ?? 6); }catch(_){}
+    return { raw: BigInt(raw?.toString?.() ?? raw ?? "0"), decimals: dec };
+  }catch(e){ console.warn("TRC20 read fail", contractAddr, e); return { raw: 0n, decimals:6 }; }
+}
+
+/* ===== Price resolution: oracle -> tronscan fallback ===== */
+async function resolvePriceForToken(normalizedToken){
+  // normalizedToken contains symbol, contract, decimals, priceUsd (fallback)
+  const { symbol, contract, priceUsd } = normalizedToken;
+  // 1) try oracle
+  const p1 = await getPriceForToken(symbol, contract);
+  if(p1 != null) return p1;
+  // 2) try tronscan-provided price field (if present)
+  if(priceUsd) {
+    const v = Number(priceUsd);
+    if(Number.isFinite(v) && v > 0) return v;
+  }
+  // 3) no price found
+  return null;
+}
+
+/* ===== Main compute function ===== */
+async function computeNetWorth(){
+  if(!tronWebInstance || !tronWebInstance.defaultAddress) { alert("Connect TronLink first"); return; }
+
+  const walletsRaw = (elWalletsText.value || "").split("\n").map(s => s.trim()).filter(Boolean);
+  if(walletsRaw.length === 0) { alert("Paste at least one wallet address (one per line)"); return; }
+
+  // build tokenContracts list from input
+  const tokenContracts = (elTokenContractsInput.value || "").split(",").map(s=>s.trim()).filter(Boolean);
 
   elProgress.textContent = "Calculating…";
+  elProgress.innerHTML = 'Calculating… <span class="spinner"></span>';
   elGrand.textContent = "Grand Total: calculating…";
-  elSkipped.textContent = "";
+  elUnpriced.textContent = "Discovering…";
 
-  // Get TRX price from WinkLink (oracle symbol TRX)
-  const trxOracle = ORACLE_BY_SYMBOL.TRX;
-  const trxPrice = trxOracle ? await readOraclePriceUSD(trxOracle) : null;
-  if(trxPrice == null){ elProgress.textContent = "Failed to read TRX oracle"; return; }
+  let grandTotal = 0;
+  const unpriced = [];
+  const details = { wallets: {} };
 
-  let grandTotalUSD = 0;
-  const skippedTokensSet = new Set();
+  // price cache for oracle addresses
+  const priceCache = {};
 
-  for (const addr of watchList){
-    elProgress.textContent = `Processing ${addr} …`;
-
-    // 1) native TRX
-    const trxBal = await fetchTRXBalance(addr); // in TRX float
-    const trxUsdVal = trxBal * trxPrice;
-    grandTotalUSD += trxUsdVal;
-
-    // 2) TRC20 tokens (list from Tronscan)
-    const tokens = await fetchTRC20List(addr);
-    // tokens array: {symbol, name, contract, decimals, balanceRaw (BigInt)}
-    for (const t of tokens){
-      // skip if no contract address
-      if(!t.contract) continue;
-      // Try get oracle for the token
-      const oracleAddr = await getOracleForToken(t.symbol, t.contract);
-      if(!oracleAddr){
-        // no oracle — skip but record
-        skippedTokensSet.add(`${t.symbol} (${t.contract.slice(0,6)}…${t.contract.slice(-4)})`);
-        continue;
-      }
-
-      // Read oracle price
-      const price = await readOraclePriceUSD(oracleAddr);
-      if(price == null){
-        skippedTokensSet.add(`${t.symbol} (${t.contract.slice(0,6)}…${t.contract.slice(-4)})`);
-        continue;
-      }
-
-      // token raw -> units (Number)
-      const units = toNumberFromRaw(t.balanceRaw, t.decimals);
-      if(units <= 0) continue;
-
-      // add value
-      grandTotalUSD += units * price;
-
-      // small pause to avoid hitting nodes too hard
-      await sleep(60);
+  async function getPriceCached(symbol, contract){
+    // contract override
+    if(contract && ORACLE_BY_CONTRACT[contract]) {
+      const o = ORACLE_BY_CONTRACT[contract];
+      if(priceCache[o] == null) priceCache[o] = await readOraclePriceUSD(o);
+      return priceCache[o];
     }
+    if(symbol && ORACLE_BY_SYMBOL[symbol.toUpperCase()]) {
+      const o2 = ORACLE_BY_SYMBOL[symbol.toUpperCase()];
+      if(priceCache[o2] == null) priceCache[o2] = await readOraclePriceUSD(o2);
+      return priceCache[o2];
+    }
+    return null;
   }
 
-  elGrand.textContent = `Grand Total: ${fmtUSD(grandTotalUSD)}`;
-  elProgress.textContent = "Done";
-  if(skippedTokensSet.size > 0){
-    elSkipped.textContent = "Skipped tokens (no WinkLink feed): " + Array.from(skippedTokensSet).slice(0,40).join(", ");
+  for(const addr of walletsRaw){
+    details.wallets[addr] = { trx:0, tokens:[], unpriced:[] };
+    // TRX
+    const trx = await fetchTRX(addr);
+    details.wallets[addr].trx = trx;
+    const trxPrice = await getPriceCached("TRX", null);
+    if(trxPrice != null){ grandTotal += trx * trxPrice; } else { details.wallets[addr].unpriced.push({symbol:"TRX", amount:trx}); unpriced.push({wallet:addr, symbol:"TRX", amount:trx}); }
+
+    // Tronscan token list (fast discovery)
+    const tokens = await fetchTronscanTokens(addr);
+    for(const t of tokens){
+      const decimals = Number(t.decimals ?? 6);
+      const raw = BigInt(t.balanceRaw ?? "0");
+      const units = toNumberFromRaw(raw, decimals);
+      if(units <= 0) continue;
+      // try resolve price
+      const p = await resolvePriceForToken(t);
+      if(p != null){
+        grandTotal += units * p;
+        details.wallets[addr].tokens.push({symbol:t.symbol, contract:t.contract, amount:units, usd: units * p});
+      } else {
+        // try optional on-chain TRC20 read + DEX fallback could be added (out of scope for this quick version)
+        details.wallets[addr].unpriced.push({symbol:t.symbol, contract:t.contract, amount:units});
+        unpriced.push({wallet:addr, symbol:t.symbol, contract:t.contract, amount:units});
+      }
+      // small delay for friendliness
+      await sleep(40);
+    }
+
+    // additionally check any explicit token contracts the user put in (in case Tronscan missed or different formatting)
+    for(const tc of tokenContracts){
+      try{
+        const b = await fetchTRC20Balance(tc, addr);
+        const units = toNumberFromRaw(b.raw, b.decimals);
+        if(units <= 0) continue;
+        // try price by contract or symbol
+        const price = await getPriceCached(null, tc) || await (async()=>{
+          // try reading token symbol to map to oracle
+          try{ const c = await tronWebInstance.contract().at(tc); const sym = await c.symbol().call().catch(()=>null); return sym? await getPriceCached(sym.toString(), tc):null; }catch(e){return null;}
+        })();
+        if(price != null){ grandTotal += units * price; details.wallets[addr].tokens.push({symbol:"(explicit)", contract:tc, amount:units, usd:units*price}); }
+        else { details.wallets[addr].unpriced.push({symbol:"(explicit)", contract:tc, amount:units}); unpriced.push({wallet:addr, contract:tc, amount:units}); }
+        await sleep(30);
+      }catch(e){ console.warn("explicit token check failed", tc, e); }
+    }
+  } // end wallets loop
+
+  elGrand.textContent = `Grand Total: ${fmtUSD(grandTotal)}`;
+  if(unpriced.length) {
+    elUnpriced.innerHTML = `Unpriced (${unpriced.length} items): ` + unpriced.slice(0,80).map(u => `${u.symbol||u.contract}(${u.amount})`).join(", ");
   } else {
-    elSkipped.textContent = "";
+    elUnpriced.textContent = "All discovered tokens priced (or none unpriced).";
   }
+  elProgress.textContent = "Done";
+  lastResult = { grandTotal, unpriced, details, timestamp: Date.now() };
+  return lastResult;
 }
 
-/* ============ EVENTS ============ */
-elBtnConnect.onclick = () => connectWallet();
+/* ===== export / UI helpers ===== */
+elBtnCalcNet.onclick = computeNetWorth;
+elExport.onclick = ()=> {
+  if(!lastResult) return alert("Run calculation first");
+  const blob = new Blob([JSON.stringify(lastResult, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "defire-networth.json"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+};
+elShowConsole.onclick = ()=> { console.log("Last result:", lastResult); alert("Result printed to console"); };
 
-elBtnAdd.onclick = () => {
-  const raw = sanitizeAddr(elWalletInput.value);
-  if(!raw) return;
-  // allow comma-separated list
-  const parts = raw.split(",").map(s=>s.trim()).filter(Boolean);
-  for(const p of parts){
-    if(!p.startsWith("T")){ alert("Invalid TRON address: " + p); continue; }
-    uniqPush(watchList, p);
+/* ===== FIRE calculator ===== */
+document.getElementById("btnCalcFire").onclick = ()=> {
+  const expenses = Number(document.getElementById("expenses").value);
+  const current  = Number(document.getElementById("current").value);
+  const yearly   = Number(document.getElementById("savings").value);
+  const apyPct   = Number(document.getElementById("apy").value);
+  if (![expenses, current, yearly, apyPct].every(x => Number.isFinite(x) && x >= 0)) {
+    document.getElementById("fireResult").textContent = "Fill valid non-negative numbers.";
+    return;
   }
-  elWalletInput.value = "";
-  renderWatchList();
+  const r = apyPct/100;
+  const target = expenses * 25;
+  let bal = current;
+  let years = 0;
+  while(bal < target && years < 100){
+    bal = bal * (1 + r) + yearly;
+    years++;
+  }
+  if(years >= 100) {
+    document.getElementById("fireOutput").innerHTML = `🚫 Not reached in 100 years. Target: $${target.toLocaleString()}`;
+  } else {
+    document.getElementById("fireOutput").innerHTML = `🔥 Target: $${target.toLocaleString()} — Estimated time: <b>${years} years</b><br/>Projected balance: $${bal.toLocaleString(undefined,{maximumFractionDigits:2})}`;
+  }
+  document.getElementById("fireResult").textContent = "Done";
 };
 
-elBtnCalc.onclick = () => calculateNetWorth();
-
-/* auto attempt connect on load if TronLink injected */
-window.addEventListener("load", () => setTimeout(() => {
-  if(window.tronWeb && window.tronWeb.ready) connectWallet();
-}, 500));
+/* try auto-connect if TronLink injected */
+window.addEventListener("load", ()=> setTimeout(()=> { if(window.tronWeb && window.tronWeb.ready) { elBtnConnect.click(); } }, 400) );
 
 </script>
 </body>
