@@ -3,614 +3,476 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>DeFire — On-Chain Net Worth + Manual Price Override</title>
+  <title>DeFire — On-Chain Net Worth (DEX fallback + meta enrichment)</title>
   <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
   <style>
-    :root{--bg:#0b0b0f;--card:#121214;--accent:#ff6600;--muted:#9aa;--ok:#00ffc3}
+    :root{--bg:#0b0b0f;--accent:#ff6600}
     body{font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(135deg,#0b0b0f,#1a0a00);color:#fff;margin:0;padding:18px;display:flex;justify-content:center}
     .wrap{width:100%;max-width:1000px}
-    header{display:flex;align-items:center;gap:14px;justify-content:space-between}
-    h1{margin:6px 0;font-size:1.4rem}
-    nav{display:flex;gap:8px}
-    button.tab{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;color:#fff;cursor:pointer}
-    .active{background:var(--accent);color:#000;border-color:var(--accent)}
-    .card{background:rgba(255,255,255,0.02);padding:14px;border-radius:12px;margin-top:14px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
-    .row{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
-    label{min-width:150px;opacity:.9}
-    textarea,input[type=text],input[type=number]{flex:1;padding:10px;border-radius:8px;border:none;background:#0f1113;color:#fff;min-width:0}
-    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-family:ui-monospace,monospace}
-    .muted{color:var(--muted);font-size:0.9rem}
-    .total{font-size:1.25rem;font-weight:800;text-align:center;margin-top:12px}
-    .small{font-size:.9rem;opacity:.85}
-    .addr{font-family:ui-monospace,monospace;color:#9fd8ff}
-    .ok{color:var(--ok)}
-    .spinner{width:16px;height:16px;border:3px solid rgba(255,255,255,0.12);border-top:3px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle}
-    @keyframes spin{to{transform:rotate(360deg)}}
+    .card{background:rgba(255,255,255,0.02);border-radius:10px;padding:14px;margin-top:12px}
+    textarea,input{width:100%;padding:10px;border-radius:8px;border:none;background:#0f1113;color:#fff;margin-top:6px}
+    button{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#000;font-weight:700;cursor:pointer}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03)}
+    .muted{opacity:.8}
     table{width:100%;border-collapse:collapse;margin-top:8px}
     th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
-    footer{margin-top:14px;color:#cfcfcf;text-align:center;font-size:.85rem}
-    .modal { position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:9999; }
-    .modal .box { background:#0f1113; padding:18px; border-radius:12px; max-width:520px; width:100%; }
-    .smallbtn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:#fff;cursor:pointer;margin-left:6px}
+    .small{font-size:.9rem;opacity:.85}
+    pre.debug{background:#0a0a0a;padding:8px;border-radius:6px;max-height:320px;overflow:auto}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <div>
-        <h1>🔥 DeFire — Net Worth (On-chain) + Manual Price Override</h1>
-        <div class="muted">WinkLink oracles • Tronscan fallback • JustLend read • Manual price overrides</div>
-      </div>
-      <nav>
-        <button id="tabPortfolio" class="tab active">Portfolio</button>
-        <button id="tabFire" class="tab">FIRE</button>
-      </nav>
-    </header>
+    <h1>🔥 DeFire — Net Worth (DEX fallback & token metadata enrichment)</h1>
 
-    <!-- access -->
-    <div class="card" id="accessCard">
-      <div class="row"><label>Connected wallet</label><div class="pill addr" id="connected">Not connected</div></div>
-      <div class="row"><label>FBA balance</label><div class="pill" id="fba">—</div></div>
-      <div class="row"><label>Access</label><div class="pill" id="status">Connect TronLink to begin</div></div>
-      <div class="row">
-        <button id="btnConnect">🔗 Connect TronLink</button>
-        <div class="muted" style="margin-left:auto">Whitelist: owner OR ≥1000 FBA unlocks Portfolio</div>
-      </div>
-    </div>
+    <div class="card">
+      <div class="small muted">Open in TronLink. Paste one TRON address per line. Optional: add explicit token contracts or JustLend comptroller/jTokens.</div>
 
-    <!-- portfolio -->
-    <div id="portfolioPane" class="card">
-      <h3 style="margin:0 0 8px">Portfolio — manual wallet input</h3>
-
-      <div class="row">
-        <label>Wallets (one per line)</label>
-        <textarea id="walletsText" placeholder="One TRON address (T...) per line" rows="6"></textarea>
+      <div style="margin-top:10px">
+        <label><strong>Wallets (one per line)</strong></label>
+        <textarea id="walletsText" rows="6" placeholder="T... (one per line)"></textarea>
       </div>
 
-      <div class="row">
-        <label>Optional: token contracts to check</label>
-        <input id="tokenContractsInput" placeholder="TUSDT..., TUSDC..., TFBA..., comma separated" value="TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf,TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7" />
+      <div style="margin-top:10px">
+        <label><strong>Optional: token contracts (comma separated)</strong></label>
+        <input id="tokenContractsInput" placeholder="TUSDT..., TFBA..., ..." />
       </div>
 
-      <div class="row">
-        <label>Optional: JustLend comptroller or jTokens</label>
-        <input id="justlendInput" placeholder="Comptroller or comma-separated jTokens (optional)"/>
+      <div style="margin-top:10px">
+        <label><strong>Optional: JustLend comptroller or jTokens</strong></label>
+        <input id="justlendInput" placeholder="Comptroller or comma-separated jTokens" />
       </div>
 
-      <div class="row">
-        <button id="btnCalcNet">🧮 Calculate Net Worth (on-chain)</button>
-        <div id="progress" class="pill">Idle</div>
-        <div style="margin-left:auto">
-          <button id="btnExport" class="smallbtn">Export JSON</button>
-          <button id="btnShowConsole" class="smallbtn">Show details</button>
-        </div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+        <button id="btnCalc">🧮 Calculate Net Worth</button>
+        <div id="status" class="pill">Idle</div>
+        <div id="trxPrice" class="pill">TRX $—</div>
       </div>
 
-      <div class="total" id="grand">Grand Total: —</div>
-
-      <div style="margin-top:12px">
-        <strong>Unpriced / Manual (click token to set USD price)</strong>
-        <div id="unpriced" class="muted">No results yet</div>
+      <div style="margin-top:14px">
+        <div><strong id="grand">Grand Total: —</strong></div>
+        <div id="perWallet" class="small muted" style="margin-top:8px"></div>
       </div>
-    </div>
 
-    <!-- FIRE -->
-    <div id="firePane" class="card" style="display:none">
-      <h3 style="margin:0 0 8px">FIRE Calculator</h3>
-      <div class="row"><label>Yearly expenses (CAD)</label><input id="expenses" type="number" placeholder="e.g. 24000" /></div>
-      <div class="row"><label>Current savings (CAD)</label><input id="current" type="number" placeholder="e.g. 116247" /></div>
-      <div class="row"><label>Yearly savings (CAD)</label><input id="savings" type="number" placeholder="e.g. 20000" /></div>
-      <div class="row"><label>Expected APY (%)</label><input id="apy" type="number" placeholder="e.g. 7" /></div>
-      <div class="row"><button id="btnCalcFire">🔥 Calculate</button><div id="fireResult" class="pill">Idle</div></div>
-      <div id="fireOutput" style="margin-top:12px" class="muted"></div>
-    </div>
+      <h4 style="margin-top:12px">Unpriced / manual (click to set price)</h4>
+      <div id="unpriced" class="small muted">—</div>
 
-    <footer style="margin-top:14px">Client-side only • No keys leave your browser • Open in TronLink in-app browser or desktop TronLink extension.</footer>
-  </div>
-
-  <!-- modal for manual price override -->
-  <div id="modal" class="modal">
-    <div class="box">
-      <h3 id="modalTitle">Set manual price</h3>
-      <div class="row"><label>Token</label><div id="modalToken" class="pill">---</div></div>
-      <div class="row"><label>Price (USD)</label><input id="modalPrice" type="number" step="0.0001" /></div>
-      <div class="row">
-        <button id="modalSave" class="smallbtn">Save</button>
-        <button id="modalCancel" class="smallbtn">Cancel</button>
-      </div>
+      <h4 style="margin-top:12px">Debug / last run</h4>
+      <pre id="debug" class="debug">No run yet.</pre>
     </div>
   </div>
 
 <script>
-/* ================== CONFIG & DEFAULTS ================== */
-
-/*
-  - OWNER_WALLET: owner bypass
-  - FBA_CONTRACT: Football Alien token contract
-  - FBA_MIN: tokens required to unlock
-  - ORACLE_BY_SYMBOL: WinkLink feed addresses (mainnet)
-  - ORACLE_BY_CONTRACT: optional explicit contract->oracle mapping
-*/
-const OWNER_WALLET = "TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma";
-const FBA_CONTRACT = "TNW5ABkp3v4jfeDo1vRVjxa3gtnoxP3DBN";
-const FBA_MIN = 1000;
-
+/* CONFIG */
+const JUSTSWAP_FACTORY = "TXk8rQSAvPvBBNtqSoY6nCfsXWCSSpTVQF"; // common community factory (change if you use another)
 const ORACLE_BY_SYMBOL = {
   TRX: "TR5HtpPK4gX4RFC4DCBUHfFgsGkGFEzSAb",
   USDT: "TKePc46n5CiUCR8LL788TFeKA4kjvNnuem",
   USDC: "TNu3zS55MP4KnBBP6aw1nHSzRpc3CXAxm",
-  SUN: "TRMgzSPsuWEcVpd5hv19XtLeCk8Z799sZa",
-  JST: "TE5rKoDzKmpVAQp1sn7x6V8biivR3d5r47",
-  BTT: "TBAAW545oJ6iTxqzezVagrSUzCpz1S8eR",
-  BTC: "TQoijQ1iZKRgJsAAWNPMu6amgtCJ3WMUV7",
-  ETH: "TR2yWYWovJaSM7TfZq7L7sT7ZRugdJJQmL"
+  BTT:  "TBAAW545oJ6iTxqzezVagrSUzCpz1S8eR",
+  SUN:  "TRMgzSPsuWEcVpd5hv19XtLeCk8Z799sZa"
 };
-
-const ORACLE_BY_CONTRACT = {
-  // "TYourTokenContract": "TOracleAddress"
-};
-
-// Tronscan token list endpoint (public)
 const TSCAN_TOKENS = addr => `https://apilist.tronscanapi.com/api/account/tokens?address=${addr}&limit=500`;
 
-/* ================== DOM refs ================== */
-const elConnected = document.getElementById("connected");
-const elFba = document.getElementById("fba");
-const elStatus = document.getElementById("status");
-const elBtnConnect = document.getElementById("btnConnect");
-const elBtnCalcNet = document.getElementById("btnCalcNet");
-const elProgress = document.getElementById("progress");
-const elGrand = document.getElementById("grand");
-const elUnpriced = document.getElementById("unpriced");
+/* DOM */
 const elWalletsText = document.getElementById("walletsText");
 const elTokenContractsInput = document.getElementById("tokenContractsInput");
 const elJustlendInput = document.getElementById("justlendInput");
-const elExport = document.getElementById("btnExport");
-const elShowConsole = document.getElementById("btnShowConsole");
+const elBtnCalc = document.getElementById("btnCalc");
+const elStatus = document.getElementById("status");
+const elGrand = document.getElementById("grand");
+const elPerWallet = document.getElementById("perWallet");
+const elDebug = document.getElementById("debug");
+const elTrxPrice = document.getElementById("trxPrice");
+const elUnpriced = document.getElementById("unpriced");
 
-const elTabPortfolio = document.getElementById("tabPortfolio");
-const elTabFire = document.getElementById("tabFire");
-const portfolioPane = document.getElementById("portfolioPane");
-const firePane = document.getElementById("firePane");
-
-const modal = document.getElementById("modal");
-const modalTitle = document.getElementById("modalTitle");
-const modalToken = document.getElementById("modalToken");
-const modalPrice = document.getElementById("modalPrice");
-const modalSave = document.getElementById("modalSave");
-const modalCancel = document.getElementById("modalCancel");
-
-/* ================== STATE ================== */
 let tronWebInstance = null;
-let connectedAddr = "";
+let trxUsdCache = null;
+let manualPrices = {}; // user can set this via clicking unpriced entries (not included UI here but we expose state)
 let lastResult = null;
-let manualPrices = {}; // contractOrSymbol -> USD price (Number)
 
-/* ================== HELPERS ================== */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const toNumberFromRaw = (rawBigInt, decimals) => {
-  try {
+function fmtUSD(n){ return Number(n||0).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2}); }
+function toNumberFromRaw(rawBigInt, decimals){
+  try{
     const scale = 10n ** BigInt(decimals);
     const intPart = rawBigInt / scale;
-    const frac = rawBigInt % scale;
-    let fracStr = frac.toString().padStart(decimals,"0");
-    fracStr = fracStr.slice(0,8).replace(/0+$/,"");
-    const s = fracStr ? `${intPart.toString()}.${fracStr}` : `${intPart.toString()}`;
-    return Number(s);
-  } catch(e) { return 0; }
-};
-const fmtUSD = n => Number(n).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2});
-
-/* ================== TAB HANDLERS ================== */
-elTabPortfolio.onclick = () => { elTabPortfolio.classList.add("active"); elTabFire.classList.remove("active"); portfolioPane.style.display="block"; firePane.style.display="none"; };
-elTabFire.onclick = () => { elTabFire.classList.add("active"); elTabPortfolio.classList.remove("active"); portfolioPane.style.display="none"; firePane.style.display="block"; };
-
-/* ================== TronLink Connect & Whitelist ================== */
-elBtnConnect.onclick = async () => {
-  if(!window.tronWeb || !window.tronWeb.ready){
-    elStatus.innerHTML = '<span style="color:#ffd166">Open in TronLink and unlock</span>';
-    return;
-  }
-  tronWebInstance = window.tronWeb;
-  connectedAddr = tronWebInstance.defaultAddress.base58 || "";
-  elConnected.textContent = connectedAddr || "Unknown";
-  elStatus.innerHTML = '<span class="muted">Checking whitelist… <span class="spinner"></span></span>';
-  const ok = await checkWhitelist(connectedAddr);
-  if(ok) elStatus.innerHTML = '<span class="ok">Access granted</span>';
-};
-
-async function checkWhitelist(addr){
-  if(!tronWebInstance) return false;
-  try {
-    if(addr === OWNER_WALLET){ elFba.textContent = "Owner"; return true; }
-    const c = await tronWebInstance.contract().at(FBA_CONTRACT);
-    const raw = await c.balanceOf(addr).call().catch(()=>0);
-    let dec = 6;
-    try{ const d = await c.decimals().call(); dec = Number(d?.toString?.() ?? d ?? 6); }catch(_) { dec = 6; }
-    const bal = toNumberFromRaw(BigInt(raw?.toString?.() ?? raw ?? "0"), dec);
-    elFba.textContent = `${bal.toLocaleString(undefined,{maximumFractionDigits:6})} FBA`;
-    if(bal >= FBA_MIN) return true;
-    elStatus.innerHTML = `<span style="color:#ff6b6b">Need ≥ ${FBA_MIN} FBA to unlock</span>`;
-    return false;
-  } catch(e) {
-    console.error("Whitelist check failed", e);
-    elFba.textContent = "Error";
-    elStatus.innerHTML = `<span style="color:#ff6b6b">Error checking FBA</span>`;
-    return false;
-  }
+    const fracPart = rawBigInt % scale;
+    let fracStr = fracPart.toString().padStart(decimals, "0").replace(/0+$/,"");
+    const asStr = fracStr ? `${intPart.toString()}.${fracStr.slice(0,8)}` : `${intPart.toString()}`;
+    return Number(asStr);
+  }catch(e){ return 0; }
 }
 
-/* ================== ORACLE READ (WinkLink) ================== */
+/* Oracle read */
 async function readOraclePriceUSD(oracleAddr){
-  try {
+  try{
     const c = await tronWebInstance.contract().at(oracleAddr);
     let od = 8;
     try{ const d = await c.decimals().call(); od = Number(d?.toString?.() ?? d ?? 8); }catch(_){}
     const ans = await c.latestAnswer().call();
     const raw = BigInt(ans?.toString?.() ?? ans ?? "0");
-    if (raw <= 0n) return null;
+    if(raw <= 0n) return null;
     return Number(raw) / Math.pow(10, od);
-  } catch(e) {
-    console.warn("oracle read failed", oracleAddr, e);
-    return null;
-  }
+  }catch(e){ console.warn("oracle read failed", oracleAddr, e); return null; }
+}
+async function getTrxUsd(){
+  if(trxUsdCache != null) return trxUsdCache;
+  const oracle = ORACLE_BY_SYMBOL.TRX;
+  if(!oracle) return null;
+  trxUsdCache = await readOraclePriceUSD(oracle);
+  return trxUsdCache;
 }
 
-async function getPriceFromOracleOrManual(symbol, contract){
-  // manual override wins
-  if(contract && manualPrices[contract]) return manualPrices[contract];
-  if(symbol && manualPrices[symbol.toUpperCase()]) return manualPrices[symbol.toUpperCase()];
-
-  // explicit contract->oracle
-  if(contract && ORACLE_BY_CONTRACT[contract]) {
-    const o = ORACLE_BY_CONTRACT[contract];
-    return await readOraclePriceUSD(o);
+/* Tronscan token discovery + normalization */
+function normalizeTronscanToken(t){
+  const contract = t.tokenId || t.tokenAddress || t.contract_address || t.contract || t.token_id || t.address || t.contractAddress || "";
+  const decimals = Number(t.tokenDecimal ?? t.decimals ?? t.decimalsToken ?? t.decimal ?? 6);
+  const balanceRaw = t.balance ?? t.amount ?? t.quantity ?? t.value ?? t.rawBalance ?? null;
+  let units = 0;
+  if(balanceRaw === null || balanceRaw === undefined) units = 0;
+  else {
+    const s = String(balanceRaw);
+    if (s.includes(".") || s.toLowerCase().includes("e")) units = Number(parseFloat(s) || 0);
+    else {
+      try { units = toNumberFromRaw(BigInt(s), decimals); } catch(e) { units = Number(s) / Math.pow(10, decimals); }
+    }
   }
-  // symbol mapping
-  if(symbol && ORACLE_BY_SYMBOL[symbol.toUpperCase()]) {
-    const o = ORACLE_BY_SYMBOL[symbol.toUpperCase()];
-    return await readOraclePriceUSD(o);
-  }
-  return null;
+  const priceUsd = t.price_usd ?? t.price ?? t.usdPrice ?? null;
+  const symbol = t.tokenAbbr ?? t.symbol ?? t.tokenName ?? t.name ?? "UNKNOWN";
+  return { symbol, name: t.tokenName || t.name || "", contract, decimals, units, priceUsd };
 }
-
-/* ================== Tronscan discovery ================================= */
 async function fetchTronscanTokens(addr){
   try{
     const res = await fetch(TSCAN_TOKENS(addr));
     if(!res.ok) throw new Error("Tronscan HTTP " + res.status);
     const json = await res.json();
     const list = json?.data || json?.tokens || [];
-    return list.map(t => {
-      // normalize
-      const contract = t.tokenId || t.tokenAddress || t.contract_address || t.contract || t.token_id || t.address || "";
-      const decimals = Number(t.tokenDecimal ?? t.decimals ?? t.decimalsToken ?? t.decimal ?? 6);
-      const balanceRaw = String(t.balance ?? t.amount ?? t.quantity ?? t.rawBalance ?? t.value ?? "0");
-      const priceUsd = t.price_usd || t.price || t.usdPrice || null;
-      return {
-        symbol: t.tokenAbbr || t.symbol || t.tokenName || t.name || "UNKNOWN",
-        name: t.tokenName || t.name || "",
-        contract,
-        decimals,
-        balanceRaw,
-        priceUsd
-      };
-    });
-  }catch(e){
-    console.warn("Tronscan tokens fetch failed for", addr, e);
-    return [];
-  }
+    return list.map(normalizeTronscanToken);
+  }catch(e){ console.warn("Tronscan request failed", e); return []; }
 }
 
-/* ================== TRC20 on-chain balance (fallback) ================== */
-async function fetchTRC20Balance(contractAddr, addr){
+/* On-chain token metadata enrichment: symbol(), decimals() */
+async function enrichTokenMetadata(token){
+  // token: { symbol, contract, decimals, units }
   try{
-    const c = await tronWebInstance.contract().at(contractAddr);
-    const raw = await c.balanceOf(addr).call();
-    let dec = 6;
-    try{ const d = await c.decimals().call(); dec = Number(d?.toString?.() ?? d ?? 6); }catch(_){}
-    return { raw: BigInt(raw?.toString?.() ?? raw ?? "0"), decimals: dec };
-  }catch(e){
-    console.warn("TRC20 read fail", contractAddr, e);
-    return { raw: 0n, decimals: 6 };
-  }
-}
-
-/* ================== JustLend discovery & read (optional) ============= */
-async function discoverJustLendMarkets(comptrollerAddr){
-  const result = [];
-  try{
-    const comp = await tronWebInstance.contract().at(comptrollerAddr);
+    if(!token.contract) return token;
+    const c = await tronWebInstance.contract().at(token.contract);
+    try { const sym = await c.symbol().call(); if(sym) token.symbol = sym.toString(); } catch(_) {}
+    try { const d = await c.decimals().call(); token.decimals = Number(d?.toString?.() ?? d ?? token.decimals ?? 6); } catch(_) {}
+    // If units looks tiny or suspicious, re-read balanceOf on-chain and compute units using decimals
     try {
-      const markets = await comp.getAllMarkets().call();
-      if (markets && markets.length) {
-        for (const m of markets) result.push(m.toString ? m.toString() : m);
-        return Array.from(new Set(result));
-      }
-    } catch(_){}
-    try {
-      for (let i=0;i<256;i++){
-        try {
-          const mk = await comp.markets(i).call();
-          if(!mk) break;
-          if(typeof mk === "string") result.push(mk); else if (mk[0]) result.push(mk[0].toString?mk[0].toString():mk[0]);
-        } catch(e) { break; }
-      }
-      if(result.length) return Array.from(new Set(result));
-    } catch(_){}
-  } catch(e){ console.warn("discoverJustLendMarkets failed", e); }
-  return result;
+      const bal = await c.balanceOf(token._owner || token._queriedOwner || token.owner || token._lastOwner || token.queryOwner).call().catch(()=>null);
+      // we don't call balanceOf generically here to avoid extra calls unless needed
+    } catch(_) {}
+    return token;
+  } catch(e){ return token; }
 }
 
-async function readJustLendPosition(jTokenAddr, userAddr){
+/* Fallback DEX (JustSwap) price attempt:
+   - Use factory.getExchange(token) (common) to get exchange address
+   - Read TRX balance of exchange (via tronWeb.trx.getBalance)
+   - Read token.balanceOf(exchange)
+   - price = (trx_balance * trx_usd) / token_balance
+*/
+async function findJustSwapExchange(tokenContract){
   try{
-    const j = await tronWebInstance.contract().at(jTokenAddr);
-    let jBalRaw = 0n; try{ const b = await j.balanceOf(userAddr).call(); jBalRaw = BigInt(b?.toString?.() ?? b ?? "0"); } catch(_) { jBalRaw = 0n; }
-    let jDecimals = 8; try{ const d = await j.decimals().call(); jDecimals = Number(d?.toString?.() ?? d ?? 8); } catch(_) { jDecimals = 8; }
-    let exchangeRaw = null;
-    try{ const ex = await j.exchangeRateStored().call(); exchangeRaw = BigInt(ex?.toString?.() ?? ex ?? "0"); } catch(_) {
-      try{ const ex2 = await j.exchangeRateCurrent().call(); exchangeRaw = BigInt(ex2?.toString?.() ?? ex2 ?? "0"); } catch(_) { exchangeRaw = null; }
-    }
-    let underlyingContract = null;
-    try{ const u = await j.underlying().call(); underlyingContract = u; } catch(_) { underlyingContract = null; }
-    let underlyingDecimals = 6;
-    if(underlyingContract){
-      try { const cu = await tronWebInstance.contract().at(underlyingContract); const d = await cu.decimals().call(); underlyingDecimals = Number(d?.toString?.() ?? d ?? 6); } catch(_) { underlyingDecimals = 6; }
-    }
-    if(!exchangeRaw){
-      const jUnits = toNumberFromRaw(jBalRaw, jDecimals);
-      return { underlyingAmount: jUnits, underlyingContract, underlyingDecimals };
-    }
-    const jUnits = toNumberFromRaw(jBalRaw, jDecimals);
-    const exStr = exchangeRaw.toString();
-    let exDecimalsGuess = 18;
-    if(exStr.length <= 20) exDecimalsGuess = 6;
-    const exchangeFloat = Number(exchangeRaw) / Math.pow(10, exDecimalsGuess);
-    const underlyingAmount = jUnits * exchangeFloat;
-    return { underlyingAmount, underlyingContract, underlyingDecimals };
-  } catch(e){ console.warn("readJustLendPosition failed", jTokenAddr, e); return { underlyingAmount:0, underlyingContract:null, underlyingDecimals:6 }; }
-}
-
-/* ================== JustSwap / DEX fallback (best-effort) ============ */
-/* We'll try to estimate price from pool/exchange contract by checking token balance in exchange vs TRX balance */
-async function readJustSwapPriceForToken(tokenContract){
-  // best-effort heuristics — may fail for some factories
-  try {
-    // try to find exchange by factory.getExchange if available (skipping deterministic create2 for simplicity)
-    // Many networks expose a factory; but we keep this small: attempt to find getExchange on community factory if set elsewhere
-    // For now, return null to avoid false numbers — user can manually override
+    if(!JUSTSWAP_FACTORY) return null;
+    const factory = await tronWebInstance.contract().at(JUSTSWAP_FACTORY);
+    // try getExchange(token)
+    try {
+      const ex = await factory.getExchange(tokenContract).call();
+      if(ex && ex !== "0x0000000000000000000000000000000000000000") return ex;
+    } catch(_) {}
+    // some factories use getPair or getExchangeAddress
+    try {
+      if(typeof factory.getPair === "function") {
+        const ex2 = await factory.getPair(tokenContract, tokenContract).call().catch(()=>null);
+        if(ex2) return ex2;
+      }
+    } catch(_) {}
     return null;
-  } catch(e) { return null; }
+  } catch(e) { console.warn("findJustSwapExchange failed", e); return null; }
 }
 
-/* ================== CORE: compute net worth for wallets ================== */
-async function computeNetWorth(){
-  if(!tronWebInstance || !tronWebInstance.defaultAddress) { alert("Connect TronLink first"); return; }
-  const walletsRaw = (elWalletsText.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
-  if(walletsRaw.length === 0) { alert("Paste at least one wallet (one per line)"); return; }
+async function readJustSwapPriceForToken(tokenContract){
+  try{
+    const exchange = await findJustSwapExchange(tokenContract);
+    if(!exchange) return null;
+    // get TRX balance of exchange
+    const trxBalanceRaw = await tronWebInstance.trx.getBalance(exchange).catch(()=>0);
+    const trxBalance = toNumberFromRaw(BigInt(typeof trxBalanceRaw === "number" ? Math.trunc(trxBalanceRaw) : String(trxBalanceRaw)), 6);
+    // get token balance of exchange
+    try {
+      const tokenC = await tronWebInstance.contract().at(tokenContract);
+      const raw = await tokenC.balanceOf(exchange).call();
+      const dec = Number(await tokenC.decimals().call().catch(()=>6));
+      const tokenBalance = toNumberFromRaw(BigInt(raw?.toString?.() ?? raw ?? "0"), dec);
+      if(tokenBalance <= 0 || trxBalance <= 0) return null;
+      const trxUsd = await getTrxUsd();
+      if(!trxUsd) return null;
+      const priceUsd = (trxBalance * trxUsd) / tokenBalance;
+      // ignore ridiculously small or huge prices as garbage
+      if(!isFinite(priceUsd) || priceUsd <= 0 || priceUsd > 1e12) return null;
+      return priceUsd;
+    } catch(e) {
+      console.warn("readJustSwapPriceForToken token read failed", e);
+      return null;
+    }
+  }catch(e){
+    console.warn("JustSwap fallback failed", e);
+    return null;
+  }
+}
 
-  // token contracts optional
-  const tokenContracts = (elTokenContractsInput.value || "").split(",").map(s=>s.trim()).filter(Boolean);
-  // JustLend input
+/* Resolve price for token with chain-first approach:
+   1) Manual override
+   2) Oracle by contract or symbol (ORACLE_BY_SYMBOL not exhaustive)
+   3) Tronscan price_usd
+   4) JustSwap DEX fallback (TRX pair -> USD)
+*/
+async function resolvePriceUsd(token){
+  // token: {symbol, contract, decimals, units, priceUsd}
+  if(token.contract && manualPrices[token.contract]) return { price: manualPrices[token.contract], source: "manual(contract)" };
+  if(token.symbol && manualPrices[token.symbol.toUpperCase()]) return { price: manualPrices[token.symbol.toUpperCase()], source: "manual(symbol)" };
+
+  // try oracle by symbol
+  if(token.symbol && ORACLE_BY_SYMBOL[token.symbol.toUpperCase()]) {
+    const p = await readOraclePriceUSD(ORACLE_BY_SYMBOL[token.symbol.toUpperCase()]);
+    if(p != null) return { price: p, source: "oracle(symbol)" };
+  }
+  // tronscan price
+  if(token.priceUsd) {
+    const num = Number(token.priceUsd);
+    if(Number.isFinite(num) && num > 0) return { price: num, source: "tronscan" };
+  }
+  // DEX fallback (on-chain)
+  if(token.contract){
+    const dexPrice = await readJustSwapPriceForToken(token.contract);
+    if(dexPrice != null) return { price: dexPrice, source: "justswap" };
+  }
+  return null;
+}
+
+/* Main compute function */
+async function computeNetWorth(){
+  if(!window.tronWeb || !window.tronWeb.ready) { alert("Open the page in TronLink (in-app) or unlock TronLink extension"); return; }
+  tronWebInstance = window.tronWeb;
+  trxUsdCache = null;
+  elStatus.textContent = "Running…";
+  elDebug.textContent = "Starting run...\n";
+  const debugLines = [];
+
+  const wallets = (elWalletsText.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
+  if(wallets.length === 0) { alert("Paste at least one wallet (one per line)"); return; }
+  const explicitContracts = (elTokenContractsInput.value || "").split(",").map(s=>s.trim()).filter(Boolean);
   const jlInput = (elJustlendInput.value || "").trim();
 
-  elProgress.textContent = "Calculating…"; elProgress.innerHTML = 'Calculating… <span class="spinner"></span>';
-  elGrand.textContent = "Grand Total: calculating…";
-  elUnpriced.textContent = "Discovering…";
+  const trxUsd = await getTrxUsd();
+  elTrxPrice.textContent = `TRX ${trxUsd ? fmtUSD(trxUsd) : "—"}`;
+  debugLines.push(`TRX USD price: ${trxUsd}`);
 
   let grandTotal = 0;
+  const perWalletTotals = {};
   const unpriced = [];
-  const details = { wallets: {} };
 
-  // price cache for oracles
-  const oracleCache = {};
-
-  async function priceLookup(symbol, contract){
-    // manual override first
-    if(contract && manualPrices[contract]) return manualPrices[contract];
-    if(symbol && manualPrices[symbol.toUpperCase()]) return manualPrices[symbol.toUpperCase()];
-
-    // contract->oracle
-    if(contract && ORACLE_BY_CONTRACT[contract]) {
-      const o = ORACLE_BY_CONTRACT[contract];
-      if(oracleCache[o] == null) oracleCache[o] = await readOraclePriceUSD(o);
-      return oracleCache[o];
-    }
-    // symbol oracle
-    if(symbol && ORACLE_BY_SYMBOL[symbol.toUpperCase()]) {
-      const o = ORACLE_BY_SYMBOL[symbol.toUpperCase()];
-      if(oracleCache[o] == null) oracleCache[o] = await readOraclePriceUSD(o);
-      return oracleCache[o];
-    }
-    return null;
-  }
-
-  // If justlend input is comptroller address, try discover markets
+  // If JustLend input is comptroller, try discover markets (best-effort)
   let jlMarkets = [];
-  if(jlInput) {
+  if(jlInput){
     if(jlInput.includes(",")) jlMarkets = jlInput.split(",").map(s=>s.trim()).filter(Boolean);
-    else { // attempt discovery
-      try { jlMarkets = await discoverJustLendMarkets(jlInput); } catch(e) { jlMarkets = []; }
+    else {
+      try {
+        jlMarkets = await (async (addr)=>{ const comp = await tronWebInstance.contract().at(addr); try { const mk = await comp.getAllMarkets().call(); return mk.map(m=>m.toString ? m.toString() : m); } catch(e){ return []; } })(jlInput);
+        debugLines.push(`JustLend discovery found ${jlMarkets.length}`);
+      } catch(e){ debugLines.push("JustLend discovery error"); }
     }
   }
 
-  for(const addr of walletsRaw){
-    details.wallets[addr] = { trx:0, tokens:[], unpriced:[], lending:[] };
+  for(const addr of wallets){
+    debugLines.push(`--- Wallet ${addr} ---`);
+    perWalletTotals[addr] = { subtotal: 0, items: [] };
 
-    // TRX
-    let trx = 0;
+    // TRX native
+    let trxUnits = 0;
     try {
       const sun = await tronWebInstance.trx.getBalance(addr);
-      trx = toNumberFromRaw(BigInt(typeof sun === "number"? Math.trunc(sun) : String(sun)), 6);
-    } catch(e) { console.warn("TRX getBalance failed", addr, e); trx = 0; }
-    details.wallets[addr].trx = trx;
-    const trxPrice = await priceLookup("TRX", null);
-    if(trxPrice != null){ grandTotal += trx * trxPrice; }
-    else { details.wallets[addr].unpriced.push({symbol:"TRX", amount:trx}); unpriced.push({wallet:addr, symbol:"TRX", amount:trx}); }
+      trxUnits = toNumberFromRaw(BigInt(typeof sun === "number" ? Math.trunc(sun) : String(sun)), 6);
+    } catch(e){ console.warn("TRX getBalance failed", e); }
+    if(trxUsd) {
+      const val = trxUnits * trxUsd; grandTotal += val; perWalletTotals[addr].subtotal += val;
+      perWalletTotals[addr].items.push({ symbol: "TRX", amount: trxUnits, usd: val, source: "native" });
+      debugLines.push(`TRX: ${trxUnits} => ${fmtUSD(val)}`);
+    } else {
+      perWalletTotals[addr].items.push({ symbol: "TRX", amount: trxUnits, usd: null, source: "native" });
+      debugLines.push(`TRX: ${trxUnits} => price missing`);
+    }
 
     // Tronscan tokens discovery
     const tokens = await fetchTronscanTokens(addr);
+    debugLines.push(`Tronscan discovered ${tokens.length} tokens`);
     for(const t of tokens){
-      const decimals = Number(t.decimals ?? 6);
-      const raw = BigInt(t.balanceRaw ?? "0");
-      const units = toNumberFromRaw(raw, decimals);
-      if(units <= 0) continue;
-      let p = null;
-      // first try manual/oracle
-      p = await priceLookup(t.symbol, t.contract);
-      if(p == null && t.priceUsd) {
-        const parsed = Number(t.priceUsd);
-        if(Number.isFinite(parsed) && parsed>0) p = parsed;
+      // if no contract skip (rare)
+      if(!t.contract) { debugLines.push(`skip token no contract: ${t.symbol}`); continue; }
+      // if decimals missing, try on-chain decimals
+      if(!t.decimals || isNaN(t.decimals)) {
+        try{
+          const c = await tronWebInstance.contract().at(t.contract);
+          const d = await c.decimals().call().catch(()=>null); if(d!=null) t.decimals = Number(d?.toString?.() ?? d ?? 6);
+        }catch(_) { t.decimals = t.decimals ?? 6; }
       }
-      if(p != null){
-        details.wallets[addr].tokens.push({symbol:t.symbol, contract:t.contract, amount:units, usd: units * p});
-        grandTotal += units * p;
+      // if units suspiciously tiny, re-read balance on-chain
+      if(!t.units || t.units < 0.0000001) {
+        try {
+          const c = await tronWebInstance.contract().at(t.contract);
+          const raw = await c.balanceOf(addr).call();
+          t.units = toNumberFromRaw(BigInt(raw?.toString?.() ?? raw ?? "0"), t.decimals ?? 6);
+          debugLines.push(`Re-read on-chain for ${t.symbol}: ${t.units}`);
+        } catch(e) { /* ignore */ }
+      }
+
+      if(!t.units || t.units <= 0) continue;
+
+      // try price resolution
+      const pr = await resolvePriceUsd(t);
+      if(pr && pr.price != null){
+        const usdVal = t.units * pr.price; grandTotal += usdVal; perWalletTotals[addr].subtotal += usdVal;
+        perWalletTotals[addr].items.push({ symbol: t.symbol, contract: t.contract, amount: t.units, usd: usdVal, priceSource: pr.source });
+        debugLines.push(`${t.symbol}: ${t.units} @ ${pr.price} (${pr.source}) => ${fmtUSD(usdVal)}`);
       } else {
-        // try direct on-chain reading + DEX fallback (best-effort) or leave as unpriced
-        const jsPrice = await readJustSwapPriceForToken(t.contract);
-        if(jsPrice != null){
-          details.wallets[addr].tokens.push({symbol:t.symbol, contract:t.contract, amount:units, usd: units * jsPrice});
-          grandTotal += units * jsPrice;
+        // last-ditch: try DEX fallback if not already tried
+        let dexPrice = null;
+        try { dexPrice = await readJustSwapPriceForToken(t.contract); } catch(e){ dexPrice = null; }
+        if(dexPrice != null){
+          const usdVal = t.units * dexPrice; grandTotal += usdVal; perWalletTotals[addr].subtotal += usdVal;
+          perWalletTotals[addr].items.push({ symbol: t.symbol, contract: t.contract, amount: t.units, usd: usdVal, priceSource: "justswap" });
+          debugLines.push(`${t.symbol}: ${t.units} @ ${dexPrice} (justswap) => ${fmtUSD(usdVal)}`);
         } else {
-          details.wallets[addr].unpriced.push({symbol:t.symbol, contract:t.contract, amount:units});
-          unpriced.push({wallet:addr, symbol:t.symbol, contract:t.contract, amount:units});
+          perWalletTotals[addr].unpriced = perWalletTotals[addr].unpriced || [];
+          perWalletTotals[addr].unpriced.push({ symbol: t.symbol, contract: t.contract, amount: t.units });
+          unpriced.push({ wallet: addr, symbol: t.symbol, contract: t.contract, amount: t.units });
+          debugLines.push(`${t.symbol}: ${t.units} => UNPRICED`);
         }
       }
       await sleep(30);
     }
 
-    // Explicit token contracts provided by user
-    for(const tc of tokenContracts){
+    // explicit token contracts input by user
+    for(const tc of explicitContracts){
       try{
-        const bal = await fetchTRC20Balance(tc, addr);
-        const units = toNumberFromRaw(bal.raw, bal.decimals);
-        if(units <= 0) continue;
-        let price = await priceLookup(null, tc);
-        if(!price){
-          // try reading symbol to match oracle
-          try { const c = await tronWebInstance.contract().at(tc); const sym = await c.symbol().call().catch(()=>null); if(sym) price = await priceLookup(sym.toString(), tc); } catch(_) {}
+        const cinfo = await (async (contract, owner) => {
+          try {
+            const c = await tronWebInstance.contract().at(contract);
+            const d = await c.decimals().call().catch(()=>6);
+            const s = await c.symbol().call().catch(()=>null);
+            const raw = await c.balanceOf(owner).call();
+            const units = toNumberFromRaw(BigInt(raw?.toString?.() ?? raw ?? "0"), Number(d ?? 6));
+            return { contract, symbol: s? s.toString() : null, decimals: Number(d), units };
+          } catch(e) { return { contract, symbol: null, decimals:6, units:0 }; }
+        })(tc, addr);
+        if(cinfo.units <= 0) continue;
+        let priceObj = null;
+        if(cinfo.symbol && ORACLE_BY_SYMBOL[cinfo.symbol.toUpperCase()]) {
+          priceObj = { price: await readOraclePriceUSD(ORACLE_BY_SYMBOL[cinfo.symbol.toUpperCase()]), source: "oracle" };
         }
-        if(price != null){
-          details.wallets[addr].tokens.push({symbol:"(explicit)", contract:tc, amount:units, usd: units*price});
-          grandTotal += units*price;
+        if(!priceObj || !priceObj.price) {
+          priceObj = await (async ()=>{ const p = await readJustSwapPriceForToken(tc); return p? { price: p, source: "justswap" } : null; })();
+        }
+        if(priceObj && priceObj.price != null) {
+          const usdVal = cinfo.units * priceObj.price; grandTotal += usdVal; perWalletTotals[addr].subtotal += usdVal;
+          perWalletTotals[addr].items.push({ symbol: cinfo.symbol || "(explicit)", contract: tc, amount: cinfo.units, usd: usdVal, priceSource: priceObj.source });
+          debugLines.push(`Explicit ${cinfo.symbol||tc}: ${cinfo.units} @ ${priceObj.price} => ${fmtUSD(usdVal)}`);
         } else {
-          // optional DEX fallback
-          const jsPrice = await readJustSwapPriceForToken(tc);
-          if(jsPrice != null) {
-            details.wallets[addr].tokens.push({symbol:"(explicit)", contract:tc, amount:units, usd: units*jsPrice});
-            grandTotal += units*jsPrice;
-          } else {
-            details.wallets[addr].unpriced.push({symbol:"(explicit)", contract:tc, amount:units});
-            unpriced.push({wallet:addr, contract:tc, amount:units});
-          }
+          perWalletTotals[addr].unpriced = perWalletTotals[addr].unpriced || [];
+          perWalletTotals[addr].unpriced.push({ contract: tc, amount: cinfo.units });
+          unpriced.push({ wallet: addr, contract: tc, amount: cinfo.units });
+          debugLines.push(`Explicit ${tc}: ${cinfo.units} => UNPRICED`);
         }
-      }catch(e){ console.warn("explicit token read fail", tc, e); }
-      await sleep(40);
+      } catch(e) { console.warn("explicit token error", e); }
+      await sleep(30);
     }
 
-    // JustLend positions (if provided)
+    // JustLend positions (optional)
     if(jlMarkets && jlMarkets.length){
       for(const j of jlMarkets){
-        try {
-          const pos = await readJustLendPosition(j, addr);
-          if(pos.underlyingAmount && pos.underlyingAmount > 0){
-            let price = null;
-            if(pos.underlyingContract) price = await priceLookup(null, pos.underlyingContract);
-            if(!price && pos.underlyingContract) price = await readJustSwapPriceForToken(pos.underlyingContract);
-            if(price != null){
-              details.wallets[addr].lending.push({ jToken:j, underlying: pos.underlyingContract, amount: pos.underlyingAmount, usd: pos.underlyingAmount * price });
-              grandTotal += pos.underlyingAmount * price;
+        try{
+          // read jToken position: balanceOf, decimals, exchangeRateStored/current, underlying()
+          const j = await tronWebInstance.contract().at(j);
+          let jBalRaw = 0n;
+          try{ const b = await j.balanceOf(addr).call(); jBalRaw = BigInt(b?.toString?.() ?? b ?? "0"); }catch(_){}
+          let jDecimals = 8; try{ const d = await j.decimals().call(); jDecimals = Number(d?.toString?.() ?? d ?? 8); }catch(_){}
+          let exchangeRaw = null;
+          try{ const ex = await j.exchangeRateStored().call(); exchangeRaw = BigInt(ex?.toString?.() ?? ex ?? "0"); }catch(_){ try{ const ex2 = await j.exchangeRateCurrent().call(); exchangeRaw = BigInt(ex2?.toString?.() ?? ex2 ?? "0"); }catch(_){ exchangeRaw = null; } }
+          let underlyingContract = null;
+          try{ const u = await j.underlying().call(); underlyingContract = u; }catch(_){ underlyingContract = null; }
+          let underlyingDecimals = 6;
+          if(underlyingContract){
+            try{ const cu = await tronWebInstance.contract().at(underlyingContract); const d = await cu.decimals().call(); underlyingDecimals = Number(d?.toString?.() ?? d ?? 6); }catch(_){}
+          }
+          if(!exchangeRaw){
+            const jUnits = toNumberFromRaw(jBalRaw, jDecimals);
+            if(jUnits > 0){
+              perWalletTotals[addr].unpriced = perWalletTotals[addr].unpriced || [];
+              perWalletTotals[addr].unpriced.push({source:'justlend', jToken:j, amount:jUnits});
+              unpriced.push({ wallet: addr, source:'justlend', jToken: j, amount:jUnits });
+            }
+          } else {
+            const jUnits = toNumberFromRaw(jBalRaw, jDecimals);
+            const exStr = exchangeRaw.toString();
+            let exDecimalsGuess = 18; if(exStr.length <= 20) exDecimalsGuess = 6;
+            const exchangeFloat = Number(exchangeRaw) / Math.pow(10, exDecimalsGuess);
+            const underlyingAmount = jUnits * exchangeFloat;
+            // try price underlying
+            let priceObj = null;
+            if(underlyingContract) {
+              // try oracle by contract
+              try {
+                // try symbol
+                const cu = await tronWebInstance.contract().at(underlyingContract);
+                const sym = await cu.symbol().call().catch(()=>null);
+                if(sym && ORACLE_BY_SYMBOL[sym.toString().toUpperCase()]) priceObj = { price: await readOraclePriceUSD(ORACLE_BY_SYMBOL[sym.toString().toUpperCase()]), source: "oracle" };
+              } catch(_) {}
+              if(!priceObj) {
+                const dex = await readJustSwapPriceForToken(underlyingContract);
+                if(dex) priceObj = { price: dex, source: "justswap" };
+              }
+            }
+            if(priceObj && priceObj.price) {
+              const usdVal = underlyingAmount * priceObj.price; grandTotal += usdVal; perWalletTotals[addr].subtotal += usdVal;
+              perWalletTotals[addr].items.push({ source:'justlend', underlying: underlyingContract, amount: underlyingAmount, usd: usdVal, priceSource: priceObj.source });
+              debugLines.push(`JustLend ${underlyingContract}: ${underlyingAmount} => ${fmtUSD(usdVal)} via ${priceObj.source}`);
             } else {
-              details.wallets[addr].unpriced.push({source:'justlend', jToken:j, underlying: pos.underlyingContract, amount: pos.underlyingAmount});
-              unpriced.push({wallet:addr, source:'justlend', jToken:j, underlying:pos.underlyingContract, amount: pos.underlyingAmount});
+              perWalletTotals[addr].unpriced = perWalletTotals[addr].unpriced || [];
+              perWalletTotals[addr].unpriced.push({ source:'justlend', jToken: j, amount: underlyingAmount, underlying: underlyingContract });
+              unpriced.push({ wallet: addr, source:'justlend', jToken: j, amount: underlyingAmount, underlying: underlyingContract });
+              debugLines.push(`JustLend ${underlyingContract}: ${underlyingAmount} => UNPRICED`);
             }
           }
-        } catch(e) { console.warn("justlend position read failed", j, e); }
+        }catch(e){ console.warn("JustLend read error", e); }
         await sleep(40);
       }
     }
-  } // end wallets loop
+
+    debugLines.push(`Wallet subtotal: ${fmtUSD(perWalletTotals[addr].subtotal)}\n`);
+    await sleep(80);
+  } // wallets loop
 
   elGrand.textContent = `Grand Total: ${fmtUSD(grandTotal)}`;
-  if(unpriced.length) {
-    // build clickable list: clicking opens modal to set manual price
-    const itemsHtml = unpriced.slice(0,200).map((u, idx) => {
-      const id = `u${idx}`;
-      const label = u.symbol || (u.contract ? u.contract.slice(0,8)+"...": "unknown");
-      return `<div style="margin:6px 0"><a href="#" data-idx="${idx}" class="unpriced-link" data-contract="${u.contract||""}" data-symbol="${u.symbol||""}">${label}</a> — ${u.amount}</div>`;
-    }).join("");
-    elUnpriced.innerHTML = itemsHtml + (unpriced.length>200?`<div class="muted">+${unpriced.length-200} more</div>` : "");
-    // attach click handlers
-    document.querySelectorAll(".unpriced-link").forEach(a=>{
-      a.onclick = (ev)=>{
-        ev.preventDefault();
-        const contract = a.getAttribute("data-contract");
-        const symbol = a.getAttribute("data-symbol");
-        openManualPriceModal(symbol || contract, contract || symbol);
-      };
-    });
+  elPerWallet.innerHTML = Object.entries(perWalletTotals).map(([w,p]) => `${w}: ${fmtUSD(p.subtotal)}`).join(" • ");
+  elStatus.textContent = "Done";
+
+  // show unpriced clickable list (simple)
+  if(unpriced.length){
+    elUnpriced.innerHTML = unpriced.slice(0,200).map(u => `${u.symbol||u.contract||u.underlying||u.jToken||'unknown'}: ${u.amount}`).join("<br>");
   } else {
-    elUnpriced.textContent = "All discovered tokens priced (or none unpriced).";
+    elUnpriced.textContent = "All discovered tokens priced (or none unpriced)";
   }
-  elProgress.textContent = "Done";
-  lastResult = { grandTotal, unpriced, details, timestamp: Date.now() };
+
+  elDebug.textContent = debugLines.join("\n");
+  lastResult = { grandTotal, perWalletTotals, unpriced, debug: debugLines, timestamp: Date.now() };
+  console.log("DeFire result:", lastResult);
   return lastResult;
 }
 
-/* ================== Manual price modal ================== */
-function openManualPriceModal(tokenLabel, contractOrSymbol){
-  modal.style.display = "flex";
-  modalToken.textContent = tokenLabel;
-  modalPrice.value = manualPrices[contractOrSymbol] ?? "";
-  modalSave.onclick = ()=> {
-    const v = Number(modalPrice.value);
-    if(!Number.isFinite(v) || v <= 0){ alert("Enter valid price > 0"); return; }
-    manualPrices[contractOrSymbol] = v;
-    modal.style.display = "none";
-    // re-run last calc quickly if we have it
-    if(lastResult) computeNetWorth();
-  };
-  modalCancel.onclick = ()=> { modal.style.display = "none"; };
-}
-
-/* ================== UI wiring ================== */
-elBtnCalcNet.onclick = computeNetWorth;
-elExport.onclick = ()=> {
-  if(!lastResult) return alert("Run calculation first");
-  const blob = new Blob([JSON.stringify(lastResult,null,2)], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = "defire-networth.json"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-};
-elShowConsole.onclick = ()=> { console.log("Last result:", lastResult); alert("Result printed to console"); };
-
-/* ================== FIRE calculator wiring ================== */
-document.getElementById("btnCalcFire").onclick = ()=> {
-  const expenses = Number(document.getElementById("expenses").value);
-  const current  = Number(document.getElementById("current").value);
-  const yearly   = Number(document.getElementById("savings").value);
-  const apyPct   = Number(document.getElementById("apy").value);
-  if (![expenses, current, yearly, apyPct].every(x => Number.isFinite(x) && x >= 0)) {
-    document.getElementById("fireResult").textContent = "Fill valid non-negative numbers.";
-    return;
-  }
-  const r = apyPct/100;
-  const target = expenses * 25;
-  let bal = current;
-  let years = 0;
-  while(bal < target && years < 100){
-    bal = bal * (1 + r) + yearly;
-    years++;
-  }
-  if(years >= 100) {
-    document.getElementById("fireOutput").innerHTML = `🚫 Not reached in 100 years. Target: $${target.toLocaleString()}`;
-  } else {
-    document.getElementById("fireOutput").innerHTML = `🔥 Target: $${target.toLocaleString()} — Estimated time: <b>${years} years</b><br/>Projected balance: $${bal.toLocaleString(undefined,{maximumFractionDigits:2})}`;
-  }
-  document.getElementById("fireResult").textContent = "Done";
-};
-
-/* ================== Auto-connect attempt ================== */
-window.addEventListener("load", ()=> setTimeout(()=> { if(window.tronWeb && window.tronWeb.ready) elBtnConnect.click(); }, 500) );
+elBtnCalc.onclick = computeNetWorth;
 
 </script>
 </body>
