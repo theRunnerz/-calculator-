@@ -1,0 +1,2 @@
+This is a placeholder. The app uses CDN-hosted sounds by default.
+If you want local sounds, place click.mp3 here.
