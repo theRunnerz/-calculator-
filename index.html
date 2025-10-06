@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>🔥 DeFire Dashboard v3 — FIRE + Full Net Worth (Tron)</title>
+<title>🔥 DeFire Dashboard — FIRE + Full Net Worth (Tron)</title>
 <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
 <style>
-:root{--bg:#0a0a0a;--card:#0f1113;--accent:#ff6600;--muted:#9aa;--ok:#00ffc3}
-body{font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(135deg,#0b0b0f,#1a0a00);color:#fff;margin:0;padding:18px;display:flex;justify-content:center}
+:root{--bg:#070707;--card:#0f1113;--accent:#ff6600;--muted:#9aa;--ok:#00ffc3}
+body{font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(135deg,#070707,#1a0a00);color:#fff;margin:0;padding:18px;display:flex;justify-content:center}
 .wrap{width:100%;max-width:1100px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 h1{margin:0;font-size:1.25rem}
@@ -28,16 +28,18 @@ pre.debug{background:#070707;padding:10px;border-radius:8px;max-height:360px;ove
 .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:9999}
 .modal .box{background:var(--card);padding:16px;border-radius:12px;width:100%;max-width:520px}
 .smallbtn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:#fff;cursor:pointer;margin-left:6px}
-table{width:100%;border-collapse:collapse;margin-top:8px}
-th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+.unpriced-link{color:#ffd3a8; cursor:pointer; text-decoration:underline}
+.summary-table{width:100%;border-collapse:collapse;margin-top:8px}
+.summary-table th,.summary-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+.note{font-size:.85rem;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div>
-      <h1>🔥 DeFire Dashboard v3</h1>
-      <div class="small" style="color:var(--muted)">FIRE calculator • Full net worth (frozen, JustLend, Sun.io, BTT, TRC20) • WinkLink + Tronscan + DEX</div>
+      <h1>🔥 DeFire Dashboard</h1>
+      <div class="small note">WinkLink → APIs → DEX fallback → manual overrides · Client-side only</div>
     </div>
     <nav>
       <button id="tabFire" class="tab active">🔥 FIRE</button>
@@ -45,7 +47,7 @@ th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left
     </nav>
   </header>
 
-  <!-- CONNECT & WHITELIST -->
+  <!-- CONNECT CARD -->
   <div class="card" id="connectCard">
     <div class="row"><label>Connected wallet</label><div class="pill addr" id="connected">Not connected</div></div>
     <div class="row"><label>FBA balance</label><div class="pill" id="fba">—</div></div>
@@ -72,7 +74,7 @@ th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left
 
   <!-- PORTFOLIO -->
   <div id="portfolioPane" class="card" style="display:none">
-    <h3 style="margin:0 0 8px">💰 Portfolio — Net Worth (full)</h3>
+    <h3 style="margin:0 0 8px">💰 Portfolio — Full Net Worth</h3>
 
     <div class="row">
       <label>Wallets (one per line)</label>
@@ -81,7 +83,7 @@ th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left
 
     <div class="row">
       <label>Optional: token contracts (comma separated)</label>
-      <input id="tokenContractsInput" placeholder="TUSDT...,TFBA...,T..." />
+      <input id="tokenContractsInput" placeholder="TUSDT..., TFBA..., T..." />
     </div>
 
     <div class="row">
@@ -92,30 +94,36 @@ th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left
     <div class="row">
       <button id="btnCalcNet">🧮 Calculate Net Worth</button>
       <div id="progress" class="pill">Idle</div>
-      <div style="margin-left:auto" class="small">Grand total shown in USD</div>
+      <div style="margin-left:auto" class="small">Values shown in USD</div>
     </div>
 
     <div class="total" id="grand">Grand Total: —</div>
 
     <div style="margin-top:10px">
-      <strong>Unpriced / Manual</strong>
+      <strong>Per-wallet subtotals</strong>
+      <div id="perWallet" class="small note">—</div>
+    </div>
+
+    <div style="margin-top:10px">
+      <strong>Unpriced / Manual (click to set price)</strong>
       <div id="unpriced" class="small" style="margin-top:6px">No run yet</div>
     </div>
 
     <div style="margin-top:10px">
       <button id="btnExport" class="smallbtn">Export JSON</button>
       <button id="btnShowConsole" class="smallbtn">Show details (console)</button>
+      <button id="btnClearManual" class="smallbtn">Clear manual prices</button>
     </div>
 
     <h4 style="margin-top:12px">Debug / last run</h4>
     <pre id="debug" class="debug">No run yet.</pre>
   </div>
 
-  <footer style="margin-top:14px" class="small">Client-side only — nothing leaves your browser except public API calls</footer>
+  <footer style="margin-top:14px" class="small note">Client-side only — public APIs used: TronScan, JustLend, Sun.io, BTT/BTTC API. WinkLink used when available.</footer>
 </div>
 
 <!-- Manual price modal -->
-<div id="modal" class="modal">
+<div id="modal" class="modal" aria-hidden="true">
   <div class="box">
     <h3 id="modalTitle">Set manual price</h3>
     <div class="row"><label>Token</label><div id="modalToken" class="pill">---</div></div>
@@ -128,24 +136,26 @@ th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left
 </div>
 
 <script>
-/* CONFIG — editable */
+/* =================== CONFIG =================== */
 const OWNER_WALLET = "TY691Xr2EWgKJmHfm7NWKMRJjojLmS2cma";
 const FBA_CONTRACT = "TNW5ABkp3v4jfeDo1vRVjxa3gtnoxP3DBN";
 const FBA_MIN = 1000;
 
+// primary WinkLink oracles (symbol -> oracle contract)
 const ORACLE_BY_SYMBOL = {
   TRX: "TR5HtpPK4gX4RFC4DCBUHfFgsGkGFEzSAb",
   USDT: "TKePc46n5CiUCR8LL788TFeKA4kjvNnuem",
   USDC: "TNu3zS55MP4KnBBP6aw1nHSzRpc3CXAxm",
-  SUN:  "TRMgzSPsuWEcVpd5hv19XtLeCk8Z799sZa",
-  JST:  "TE5rKoDzKmpVAQp1sn7x6V8biivR3d5r47",
-  BTT:  "TBAAW545oJ6iTxqzezVagrSUzCpz1S8eR",
-  BTC:  "TQoijQ1iZKRgJsAAWNPMu6amgtCJ3WMUV7",
-  ETH:  "TR2yWYWovJaSM7TfZq7L7sT7ZRugdJJQmL"
+  BTT: "TBAAW545oJ6iTxqzezVagrSUzCpz1S8eR",
+  SUN: "TRMgzSPsuWEcVpd5hv19XtLeCk8Z799sZa",
+  JST: "TE5rKoDzKmpVAQp1sn7x6V8biivR3d5r47",
+  BTC: "TQoijQ1iZKRgJsAAWNPMu6amgtCJ3WMUV7",
+  ETH: "TR2yWYWovJaSM7TfZq7L7sT7ZRugdJJQmL"
 };
-const ORACLE_BY_CONTRACT = {}; // add overrides if needed
+const ORACLE_BY_CONTRACT = {}; // add contract -> oracle overrides here if needed
 
-const JUSTSWAP_FACTORY = "TXk8rQSAvPvBBNtqSoY6nCfsXWCSSpTVQF"; // community factory
+// endpoints
+const JUSTSWAP_FACTORY = "TXk8rQSAvPvBBNtqSoY6nCfsXWCSSpTVQF";
 const TSCAN_TOKENS = addr => `https://apilist.tronscanapi.com/api/account/tokens?address=${addr}&limit=500`;
 const TSCAN_ACCOUNTV2 = addr => `https://apilist.tronscanapi.com/api/accountv2?address=${addr}`;
 const JUSTLEND_ACCOUNT = addr => `https://api.just.network/api/v1/account?address=${addr}`;
@@ -153,7 +163,7 @@ const SUN_USER_INFO = addr => `https://api.sun.io/v3/user/info?address=${addr}`;
 const BTT_INFO = addr => `https://apilist.tronscanapi.com/api/account/btt?address=${addr}`;
 const BTT_BALANCE_BTTC = (addr, contract) => `https://api.bttcscan.com/api?module=account&action=tokenbalance&contractaddress=${contract}&address=${addr}`;
 
-/* DOM refs */
+/* =================== DOM refs =================== */
 const elConnected = document.getElementById("connected");
 const elFba = document.getElementById("fba");
 const elStatus = document.getElementById("status");
@@ -173,10 +183,12 @@ const elJustlendInput = document.getElementById("justlendInput");
 const elBtnCalcNet = document.getElementById("btnCalcNet");
 const elProgress = document.getElementById("progress");
 const elGrand = document.getElementById("grand");
+const elPerWallet = document.getElementById("perWallet");
 const elUnpriced = document.getElementById("unpriced");
 const elDebug = document.getElementById("debug");
 const elBtnExport = document.getElementById("btnExport");
 const elBtnShowConsole = document.getElementById("btnShowConsole");
+const elBtnClearManual = document.getElementById("btnClearManual");
 
 const modal = document.getElementById("modal");
 const modalToken = document.getElementById("modalToken");
@@ -184,11 +196,11 @@ const modalPrice = document.getElementById("modalPrice");
 const modalSave = document.getElementById("modalSave");
 const modalCancel = document.getElementById("modalCancel");
 
-/* STATE */
+/* =================== STATE =================== */
 let tronWebInstance = null;
 let connectedAddr = "";
 let oracleCache = {};
-let manualPrices = JSON.parse(localStorage.getItem("defire_manualPrices")||"{}");
+let manualPrices = JSON.parse(localStorage.getItem("defire_manualPrices") || "{}");
 let lastResult = null;
 let unlockedPortfolio = false;
 
@@ -209,7 +221,7 @@ function toNumberFromRaw(rawBigInt, decimals){
 elTabFire.onclick = ()=>{ elTabFire.classList.add("active"); elTabPortfolio.classList.remove("active"); firePane.style.display="block"; portfolioPane.style.display="none"; };
 elTabPortfolio.onclick = ()=>{ elTabPortfolio.classList.add("active"); elTabFire.classList.remove("active"); firePane.style.display="none"; portfolioPane.style.display="block"; };
 
-/* Connect & whitelist */
+/* TronLink connect & whitelist */
 elBtnConnect.onclick = async () => {
   if(!window.tronWeb || !window.tronWeb.ready){
     elStatus.innerHTML = '<span style="color:#ffd166">Open in TronLink & unlock</span>'; return;
@@ -222,6 +234,8 @@ elBtnConnect.onclick = async () => {
   if(unlockedPortfolio){
     elStatus.innerHTML = `<span style="color:var(--ok)">Access granted</span>`;
     portfolioPane.style.display = "block";
+    // auto refresh on connect
+    await computeNetWorth();
   } else {
     elStatus.innerHTML = `<span style="color:#ff6b6b">Portfolio locked (need ${FBA_MIN} FBA or owner)</span>`;
     portfolioPane.style.display = "none";
@@ -245,13 +259,14 @@ async function checkWhitelist(addr){
   }
 }
 
-/* ORACLE read (WinkLink) */
+/* WinkLink oracle read */
 async function readOraclePriceUSD(oracleAddr){
   try{
     if(!tronWebInstance) return null;
     if(oracleCache[oracleAddr] != null) return oracleCache[oracleAddr];
     const c = await tronWebInstance.contract().at(oracleAddr);
-    let od = 8; try{ const d = await c.decimals().call(); od = Number(d?.toString?.() ?? d ?? 8); }catch(_){}
+    let od = 8;
+    try{ const d = await c.decimals().call(); od = Number(d?.toString?.() ?? d ?? 8); }catch(_){}
     const ans = await c.latestAnswer().call();
     const raw = BigInt(ans?.toString?.() ?? ans ?? "0");
     if(raw <= 0n) { oracleCache[oracleAddr] = null; return null; }
@@ -262,24 +277,25 @@ async function readOraclePriceUSD(oracleAddr){
 }
 
 async function getPriceFromOracleOrManual(symbol, contract){
+  // manual override first
   if(contract && manualPrices[contract]) return manualPrices[contract];
   if(symbol && manualPrices[symbol.toUpperCase()]) return manualPrices[symbol.toUpperCase()];
+  // contract-specific oracle
   if(contract && ORACLE_BY_CONTRACT[contract]) {
-    const o = ORACLE_BY_CONTRACT[contract];
-    return await readOraclePriceUSD(o);
+    return await readOraclePriceUSD(ORACLE_BY_CONTRACT[contract]);
   }
+  // symbol oracle
   if(symbol && ORACLE_BY_SYMBOL[symbol.toUpperCase()]) {
-    const o2 = ORACLE_BY_SYMBOL[symbol.toUpperCase()];
-    return await readOraclePriceUSD(o2);
+    return await readOraclePriceUSD(ORACLE_BY_SYMBOL[symbol.toUpperCase()]);
   }
   return null;
 }
 
-/* TronScan discovery & helpers */
+/* TronScan token discovery */
 async function fetchTronscanTokens(addr){
   try{
     const res = await fetch(TSCAN_TOKENS(addr));
-    if(!res.ok) throw new Error("Tronscan HTTP " + res.status);
+    if(!res.ok) throw new Error("TronScan tokens HTTP " + res.status);
     const json = await res.json();
     const list = json?.data || json?.tokens || [];
     return list.map(t=>{
@@ -297,7 +313,7 @@ async function fetchTronscanTokens(addr){
       const symbol = t.tokenAbbr ?? t.symbol ?? t.tokenName ?? t.name ?? "UNKNOWN";
       return { symbol, name: t.tokenName || t.name || "", contract, decimals, units, priceUsd };
     });
-  }catch(e){ console.warn("Tronscan tokens fetch failed for", addr, e); return []; }
+  }catch(e){ console.warn("TronScan tokens fetch failed for", addr, e); return []; }
 }
 
 /* fetch TRX native */
@@ -309,17 +325,18 @@ async function fetchTRX(addr){
   }catch(e){ console.warn("TRX fetch error", addr, e); return 0; }
 }
 
-/* TRC20 read fallback */
+/* TRC20 on-chain balance */
 async function fetchTRC20Balance(contractAddr, addr){
   try{
     const c = await tronWebInstance.contract().at(contractAddr);
     const raw = await c.balanceOf(addr).call();
-    let dec = 6; try{ const d = await c.decimals().call(); dec = Number(d?.toString?.() ?? d ?? 6); }catch(_){}
+    let dec = 6;
+    try{ const d = await c.decimals().call(); dec = Number(d?.toString?.() ?? d ?? 6); }catch(_){}
     return { raw: BigInt(raw?.toString?.() ?? raw ?? "0"), decimals: dec, units: toNumberFromRaw(BigInt(raw?.toString?.() ?? raw ?? "0"), dec) };
   }catch(e){ console.warn("TRC20 read fail", contractAddr, e); return { raw: 0n, decimals: 6, units: 0 }; }
 }
 
-/* JustSwap DEX fallback */
+/* JustSwap DEX fallback price */
 async function findJustSwapExchangeForToken(tokenContract){
   try{
     const factory = await tronWebInstance.contract().at(JUSTSWAP_FACTORY);
@@ -347,7 +364,7 @@ async function readJustSwapPriceForToken(tokenContract){
   }catch(e){ return null; }
 }
 
-/* TRX USD helper */
+/* TRX USD (oracle) */
 async function getTrxUsd(){
   const oracle = ORACLE_BY_SYMBOL.TRX;
   if(!oracle) return null;
@@ -357,7 +374,7 @@ async function getTrxUsd(){
   return v;
 }
 
-/* EXTRA SOURCES: frozen / justlend / sun.io / btt */
+/* EXTRA: frozen / JustLend / Sun.io / BTT APIs */
 async function fetchFrozenInfo(addr){
   try{
     const res = await fetch(TSCAN_ACCOUNTV2(addr));
@@ -369,7 +386,6 @@ async function fetchFrozenInfo(addr){
     else if(json?.frozen && Array.isArray(json.frozen)){
       for(const f of json.frozen) if(f?.amount) totalFrozen += Number(f.amount);
     }
-    // tronscan sometimes returns SUN amounts — normalize heuristically
     if(totalFrozen > 1e9) totalFrozen = totalFrozen / 1e6;
     return { totalFrozen };
   }catch(e){ console.warn("fetchFrozenInfo failed", e); return { totalFrozen: 0 }; }
@@ -402,18 +418,18 @@ async function fetchBttInfo(addr){
   }catch(e){ console.warn("BTT fetch failed", e); return null; }
 }
 
-/* Bttt cchain token read helper (BTTC chain API example) — requires known contract */
+/* BTTC token balance helper */
 async function fetchBttBalanceBttc(addr, contract){
   try{
     const res = await fetch(BTT_BALANCE_BTTC(addr, contract));
-    if(!res.ok) throw new Error("BTTC API HTTP " + res.status);
+    if(!res.ok) throw new Error("BTTC HTTP " + res.status);
     const json = await res.json();
     if(json?.status === "1" && json?.result) return Number(json.result || 0);
     return 0;
   }catch(e){ console.warn("BTTC fetch failed", e); return 0; }
 }
 
-/* MAIN: compute net worth (full integration) */
+/* =================== MAIN computeNetWorth (WinkLink-primary) =================== */
 async function computeNetWorth(){
   if(!tronWebInstance || !tronWebInstance.defaultAddress) { alert("Connect TronLink and unlock first"); return; }
   const walletsRaw = (elWalletsText.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
@@ -452,14 +468,15 @@ async function computeNetWorth(){
       }
     }catch(e){ details.wallets[w].frozen = 0; }
 
-    // 3) Tronscan tokens
+    // 3) tokens (TronScan)
     try{
       const tokens = await fetchTronscanTokens(w);
       for(const t of tokens){
-        if(!t.contract){ details.wallets[w].unpriced.push({symbol:t.symbol, amount:t.units}); unpriced.push({wallet:w, symbol:t.symbol, amount:t.units}); continue; }
+        if(!t.contract){ details.wallets[w].unpriced.push({ symbol:t.symbol, amount:t.units }); unpriced.push({ wallet:w, symbol:t.symbol, amount:t.units }); continue; }
         const units = Number(t.units || 0);
         if(units <= 0) continue;
-        // price resolution
+
+        // price: WinkLink (symbol/contract) -> TronScan price -> JustSwap fallback -> manual
         let price = await getPriceFromOracleOrManual(t.symbol, t.contract);
         let priceSource = null;
         if(price != null) priceSource = "oracle";
@@ -468,8 +485,11 @@ async function computeNetWorth(){
           const dex = await readJustSwapPriceForToken(t.contract);
           if(dex != null){ price = dex; priceSource = "justswap"; }
         }
+
         if(price != null){
-          const usdVal = units * price; details.wallets[w].tokens.push({ symbol:t.symbol, contract:t.contract, amount:units, usd:usdVal, priceSource }); grandTotal += usdVal;
+          const usdVal = units * price;
+          details.wallets[w].tokens.push({ symbol:t.symbol, contract:t.contract, amount:units, usd:usdVal, priceSource });
+          grandTotal += usdVal;
         } else {
           details.wallets[w].unpriced.push({ symbol:t.symbol, contract:t.contract, amount:units });
           unpriced.push({ wallet:w, symbol:t.symbol, contract:t.contract, amount:units });
@@ -495,21 +515,26 @@ async function computeNetWorth(){
       await sleep(20);
     }
 
-    // 5) JustLend: public API
+    // 5) JustLend: public API (preferred)
     try{
       const jl = await fetchJustLendAccount(w);
       if(jl){
-        // prefer API USD totals if provided
-        if(typeof jl.account?.totalSupplyUsd === "number"){ // some APIs name these differently
-          const sUsd = jl.account.totalSupplyUsd || jl.account.supplyUsd || jl.account.totalSupplyUsd;
-          const bUsd = jl.account.totalBorrowUsd || jl.account.borrowUsd || 0;
-          const net = (Number(sUsd||0) - Number(bUsd||0));
-          if(!isNaN(net) && net !== 0){ details.wallets[w].lending.push({ source:"justlend-api", usd: net, raw: jl }); grandTotal += net; }
+        // common fields differ per API; try robust parsing
+        const account = jl.account ?? jl;
+        // try total supply/borrow USD if present
+        const totalSupplyUsd = account?.totalSupplyUsd || account?.supplyUsd || account?.total_supply_usd || account?.supply_total_usd;
+        const totalBorrowUsd = account?.totalBorrowUsd || account?.borrowUsd || account?.total_borrow_usd || account?.borrow_total_usd;
+        if(typeof totalSupplyUsd === "number" || typeof totalBorrowUsd === "number"){
+          const s = Number(totalSupplyUsd||0);
+          const b = Number(totalBorrowUsd||0);
+          const net = s - b;
+          details.wallets[w].lending.push({ source:"justlend-api", usdNet: net, raw: jl });
+          if(net) grandTotal += net;
         } else if(typeof jl.totalUsd === "number"){
-          details.wallets[w].lending.push({ source:"justlend-api", usd: Number(jl.totalUsd), raw: jl }); grandTotal += Number(jl.totalUsd);
-        } else if(Array.isArray(jl.supplies) || Array.isArray(jl?.assets)){
-          // try to parse supplies array
-          const supplies = jl.supplies || jl.assets || [];
+          details.wallets[w].lending.push({ source:"justlend-api", usd: Number(jl.totalUsd), raw: jl });
+          grandTotal += Number(jl.totalUsd);
+        } else if(Array.isArray(account?.supplies) || Array.isArray(account?.assets)){
+          const supplies = account.supplies || account.assets || [];
           for(const s of supplies){
             let amt = Number(s.amount || s.units || s.underlyingAmount || 0);
             let usdVal = s.usdValue || s.usd || s.valueUsd || null;
@@ -523,12 +548,13 @@ async function computeNetWorth(){
             }
             if(usdVal != null){ details.wallets[w].lending.push({ source:"justlend", underlying:s.underlying, amount:amt, usd:usdVal }); grandTotal += usdVal; }
             else { details.wallets[w].unpriced.push({source:"justlend", underlying:s.underlying, amount:amt}); unpriced.push({wallet:w, source:"justlend", underlying:s.underlying, amount:amt}); }
+            await sleep(10);
           }
         }
       }
     }catch(e){ console.warn("JustLend fetch error", e); }
 
-    // 6) Sun.io user info
+    // 6) Sun.io: LP / stake
     try{
       const sun = await fetchSunUser(w);
       if(sun){
@@ -537,12 +563,13 @@ async function computeNetWorth(){
           for(const lp of sun.lpList){
             if(typeof lp.usdValue === "number"){ details.wallets[w].sun = details.wallets[w].sun || { usd:0 }; details.wallets[w].sun.usd = (details.wallets[w].sun.usd||0) + Number(lp.usdValue); grandTotal += Number(lp.usdValue); }
             else { details.wallets[w].unpriced.push({source:"sun", lp}); unpriced.push({wallet:w, source:"sun", lp}); }
+            await sleep(10);
           }
         }
       }
     }catch(e){ console.warn("Sun fetch error", e); }
 
-    // 7) BTT info (Tronscan extension)
+    // 7) BTT (Tronscan / BTTC) best-effort
     try{
       const btt = await fetchBttInfo(w);
       if(btt){
@@ -554,27 +581,39 @@ async function computeNetWorth(){
               if(price){ const usdVal = Number(t.amount) * price; details.wallets[w].btt = details.wallets[w].btt || { usd:0 }; details.wallets[w].btt.usd = (details.wallets[w].btt.usd||0) + usdVal; grandTotal += usdVal; }
               else { details.wallets[w].unpriced.push({source:"btt", token:t}); unpriced.push({wallet:w, source:"btt", token:t}); }
             }
+            await sleep(10);
           }
         }
       }
     }catch(e){ console.warn("BTT fetch error", e); }
 
-    // slight pause per wallet
-    await sleep(80);
+    // short pause
+    await sleep(60);
   } // end wallets loop
 
   // finalize UI
   elGrand.textContent = `Grand Total: ${fmtUSD(grandTotal)}`;
-  elProgress.textContent = "Done";
+
+  // per-wallet subtotals
+  const per = Object.entries(details.wallets).map(([w, obj]) => {
+    const subtotal = (obj.trxUsd||0) + (obj.frozenUsd||0) + (obj.tokens?.reduce((s,t)=>s+(t.usd||0),0)||0)
+      + (obj.lending?.reduce((s,l)=>s+(l.usd||l.usdNet||0),0)||0) + (obj.sun?.usd||0) + (obj.btt?.usd||0);
+    return `${w}: ${fmtUSD(subtotal)}`;
+  }).join(" • ");
+  elPerWallet.textContent = per || "—";
+
+  // unpriced clickable list
   if(unpriced.length){
     elUnpriced.innerHTML = unpriced.slice(0,200).map((u, i) => {
-      const label = u.symbol || u.contract || u.underlying || u.lp || u.source || "unknown";
-      return `<div style="margin:6px 0"><a href="#" class="unpriced-link" data-contract="${u.contract||u.underlying||''}" data-symbol="${u.symbol||''}" data-idx="${i}">${label}</a> — ${u.amount||''}</div>`;
+      const label = u.symbol || u.contract || u.underlying || (u.lp && u.lp.lpName) || u.source || "unknown";
+      return `<div style="margin:6px 0"><a class="unpriced-link" data-contract="${u.contract||u.underlying||''}" data-symbol="${u.symbol||''}" data-idx="${i}">${label}</a> — ${u.amount||''}</div>`;
     }).join("");
     document.querySelectorAll(".unpriced-link").forEach(a=>{
       a.onclick = (ev)=>{ ev.preventDefault(); const contract = a.getAttribute("data-contract"); const symbol = a.getAttribute("data-symbol"); openManualPriceModal(symbol || contract, contract || symbol); };
     });
   } else { elUnpriced.textContent = "No unpriced items"; }
+
+  elProgress.textContent = "Done";
   elDebug.textContent = JSON.stringify(details, null, 2);
   lastResult = { grandTotal, details, unpriced, timestamp: Date.now() };
   localStorage.setItem("defire_manualPrices", JSON.stringify(manualPrices || {}));
@@ -584,17 +623,27 @@ async function computeNetWorth(){
 
 /* Manual price modal */
 function openManualPriceModal(tokenLabel, contractOrSymbol){
-  modal.style.display = "flex"; modalToken.textContent = tokenLabel || contractOrSymbol || "token"; modalPrice.value = manualPrices[contractOrSymbol] ?? "";
+  modal.style.display = "flex"; modal.setAttribute("aria-hidden","false");
+  modalToken.textContent = tokenLabel || contractOrSymbol || "token";
+  modalPrice.value = manualPrices[contractOrSymbol] ?? "";
   modalSave.onclick = ()=> {
     const v = Number(modalPrice.value);
     if(!Number.isFinite(v) || v <= 0){ alert("Enter valid price > 0"); return; }
     manualPrices[contractOrSymbol] = v;
-    modal.style.display = "none";
+    modal.style.display = "none"; modal.setAttribute("aria-hidden","true");
     localStorage.setItem("defire_manualPrices", JSON.stringify(manualPrices || {}));
     if(lastResult) computeNetWorth();
   };
-  modalCancel.onclick = ()=> { modal.style.display = "none"; };
+  modalCancel.onclick = ()=> { modal.style.display = "none"; modal.setAttribute("aria-hidden","true"); };
 }
+
+/* Clear manual prices */
+elBtnClearManual.onclick = ()=> {
+  if(confirm("Clear all manual price overrides?")) {
+    manualPrices = {}; localStorage.removeItem("defire_manualPrices"); alert("Manual prices cleared.");
+    if(lastResult) computeNetWorth();
+  }
+};
 
 /* FIRE calculator */
 elBtnCalcFire.onclick = ()=> {
@@ -603,23 +652,18 @@ elBtnCalcFire.onclick = ()=> {
   const yearly   = Number(document.getElementById("savings").value);
   const apyPct   = Number(document.getElementById("apy").value);
   if (![expenses, current, yearly, apyPct].every(x => Number.isFinite(x) && x >= 0)) {
-    elFireResult.textContent = "Fill valid non-negative numbers.";
-    return;
+    elFireResult.textContent = "Fill valid non-negative numbers."; return;
   }
   const r = apyPct/100;
   const target = expenses * 25;
-  let bal = current;
-  let years = 0;
-  while(bal < target && years < 100){
-    bal = bal * (1 + r) + yearly;
-    years++;
-  }
+  let bal = current; let years = 0;
+  while(bal < target && years < 100){ bal = bal * (1 + r) + yearly; years++; }
   if(years >= 100) elFireOutput.innerHTML = `🚫 Not reached in 100 years. Target: $${target.toLocaleString()}`;
-  else elFireOutput.innerHTML = `🔥 Target: $${target.toLocaleString()} — Estimated time: <b>${years} years</b><br/>Projected balance: $${bal.toLocaleString(undefined,{maximumFractionDigits:2})}`;
+  else elFireOutput.innerHTML = `🔥 Target: $${target.toLocaleString()} — Estimated: <b>${years} years</b><br/>Projected balance: $${bal.toLocaleString(undefined,{maximumFractionDigits:2})}`;
   elFireResult.textContent = "Done";
 };
 
-/* Bind compute */
+/* Buttons */
 elBtnCalcNet.onclick = computeNetWorth;
 elBtnExport.onclick = ()=> {
   if(!lastResult) return alert("Run calculation first");
@@ -629,8 +673,9 @@ elBtnExport.onclick = ()=> {
 };
 elBtnShowConsole.onclick = ()=> { console.log("Last result:", lastResult); alert("Result printed to console"); };
 
-/* Auto-connect if TronLink injected/unlocked */
-window.addEventListener("load", ()=> setTimeout(()=> { if(window.tronWeb && window.tronWeb.ready) { elBtnConnect.click(); } }, 400) );
+/* Auto-connect on load if tronWeb present/unlocked */
+window.addEventListener("load", ()=> setTimeout(()=> { if(window.tronWeb && window.tronWeb.ready) { elBtnConnect.click(); } }, 350) );
+
 </script>
 </body>
 </html>
